@@ -18,6 +18,7 @@ Les matchs des équipes de cœur sont mis en avant avec une carte animée **🔥
 - **Programme du jour** : d'abord les immanquables, puis les matchs « à suivre » (grosses affiches, joueurs français au tennis, Grands Prix de F1…), puis tout le reste, classé par compétition.
 - **Chaînes** : pour chaque match, les chaînes françaises, américaines et anglaises. Les chaînes gratuites ont le badge **GRATUIT**.
 - **Scores en direct**, mis à jour toutes les minutes pendant les matchs.
+- **🔄 Actualiser** (en haut) : recharge tout le programme d'un coup : nouveaux matchs, horaires confirmés, changements de chaîne. Un message dit combien de nouveaux matchs sont arrivés. Sans cliquer, l'appli vérifie aussi toute seule toutes les 15 minutes et à chaque retour sur l'onglet.
 - **📅 Me le rappeler** : ajoute le match à l'agenda du téléphone ou de l'ordinateur, avec une alerte 30 minutes avant.
 - **Recherche** d'une équipe ou d'un joueur (« Forest », « Fils », « Marseille »…).
 - **⚙ Réglages** :

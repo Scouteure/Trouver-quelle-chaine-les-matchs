@@ -724,6 +724,7 @@
   function renderStatus() {
     const el = $('#data-status');
     const busy = state.loading.size > 0;
+    $('#btn-refresh').classList.toggle('is-busy', busy || !!state.refreshing);
     if (busy) { el.innerHTML = '<span class="st-dot warn"></span>Mise à jour des calendriers…'; return; }
     if (state.lastUpdate) {
       el.innerHTML = '<span class="st-dot"></span>Calendriers à jour (' + hhmm(state.lastUpdate) + ')' +
@@ -732,6 +733,43 @@
       el.innerHTML = '<span class="st-dot warn"></span>Hors connexion : programme enregistré le ' +
         fmtShortDay.format(keyToUTC(dayKey(state.snapshotDate)));
     }
+    if (!el.querySelector('[data-refresh]')) {
+      el.insertAdjacentHTML('beforeend', '<button class="status-refresh" data-refresh>🔄 Actualiser</button>');
+    }
+  }
+
+  // Bouton « Actualiser » : retélécharge tout le mois affiché (nouveaux matchs,
+  // horaires fixés, scores) puis dit ce qui a changé.
+  function refreshAll() {
+    if (state.refreshing) return;
+    state.refreshing = true;
+    const before = new Set(state.events.keys());
+    const months = [state.month];
+    selectedDays().forEach(function (k) { if (months.indexOf(monthOf(k)) === -1) months.push(monthOf(k)); });
+    if (+todayKey().slice(8) >= 24 && months.indexOf(addMonths(monthOf(todayKey()), 1)) === -1) {
+      months.push(addMonths(monthOf(todayKey()), 1));
+    }
+    state.errors.clear();
+    months.forEach(function (m) { loadMonth(m, true); });
+    Object.keys(liveStamp).forEach(function (k) { delete liveStamp[k]; });
+    liveRefresh();
+    scheduleRender();
+    const started = Date.now();
+    const wait = setInterval(function () {
+      if ((state.loading.size || queue.length || running) && Date.now() - started < 60000) return;
+      clearInterval(wait);
+      state.refreshing = false;
+      let added = 0;
+      state.events.forEach(function (ev, id) { if (!before.has(id) && visible(ev)) added++; });
+      if (!state.lastUpdate || Date.now() - state.lastUpdate > 60000) {
+        toast('⚠️ Pas de connexion au calendrier pour le moment. Réessayez dans un instant.');
+      } else if (added) {
+        toast('✅ Programme à jour : ' + added + ' nouveau' + (added > 1 ? 'x' : '') + ' match' + (added > 1 ? 's' : '') + ' ajouté' + (added > 1 ? 's' : '') + ' !');
+      } else {
+        toast('✅ Programme à jour (horaires, scores et chaînes).');
+      }
+      scheduleRender();
+    }, 400);
   }
 
   // ===================================================================
@@ -842,8 +880,8 @@
       '<form class="add-fav" id="add-fav"><input id="add-fav-input" placeholder="Ajouter une équipe ou un joueur (ex. : Marseille, Fils…)" maxlength="40">' +
       '<button class="btn btn--primary" type="submit">Ajouter</button></form>' +
       '<h4>Chaînes à afficher</h4><div class="region-list">' + regions + '</div>' +
-      '<h4>Données</h4><p class="dlg-info" style="margin:0 0 10px">Les calendriers se mettent à jour tout seuls. En cas de souci :</p>' +
-      '<button class="btn" id="force-refresh">🔄 Tout recharger</button>' +
+      '<h4>Données</h4><p class="dlg-info" style="margin:0 0 10px">Le programme se met à jour tout seul (toutes les 15 min, et chaque minute pendant les matchs). Pour forcer :</p>' +
+      '<button class="btn" id="force-refresh">🔄 Actualiser maintenant</button>' +
       '</div>';
     showDialog(dlg);
   }
@@ -952,10 +990,10 @@
         savePrefs(); rerateAll(); openSettings(); render();
         return;
       }
-      if (t.closest('#force-refresh')) {
-        t.closest('dialog').close();
-        loadMonth(state.month, true);
-        toast('🔄 Rechargement des calendriers…');
+      if (t.closest('#force-refresh') || t.closest('[data-refresh]')) {
+        const dlg = t.closest('dialog');
+        if (dlg) dlg.close();
+        refreshAll();
         return;
       }
     });
@@ -992,6 +1030,7 @@
     });
 
     $('#btn-settings').addEventListener('click', openSettings);
+    $('#btn-refresh').addEventListener('click', refreshAll);
     $('#btn-text').addEventListener('click', function () {
       prefs.bigText = !prefs.bigText;
       savePrefs(); applyPrefs();
@@ -1066,6 +1105,8 @@
     }, 12000);
     setInterval(tick, 20000);
     setInterval(liveRefresh, 60000);
+    // Et toutes les 15 minutes, on vérifie tout seul s'il y a du nouveau.
+    setInterval(function () { if (!document.hidden) loadMonth(state.month); }, 15 * 60000);
     // Changement de jour à minuit
     let lastToday = t;
     setInterval(function () {
