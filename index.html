@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Le Guide Sport de Papa</title>
+  <meta name="description" content="Tous les matchs, toutes les chaînes : France, États-Unis, Royaume-Uni.">
+  <meta name="theme-color" content="#070b1a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Sport Papa">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-theme="bleus">
+  <div class="sky" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 64 64"><defs><clipPath id="bm"><circle cx="32" cy="32" r="29"/></clipPath></defs>
+          <g clip-path="url(#bm)"><rect x="0" y="0" width="22" height="64" fill="#0055a4"/><rect x="22" y="0" width="20" height="64" fill="#fff"/><rect x="42" y="0" width="22" height="64" fill="#ef4135"/></g>
+          <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M32 18l8 6-3 10h-10l-3-10z" fill="#0b1020" opacity=".85"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Le Guide Sport <span>de Papa</span></h1>
+        <p class="tagline">Tous les matchs · toutes les chaînes
+          <span class="tag-flags" id="tag-flags"></span></p>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <div class="theme-switch" role="radiogroup" aria-label="Couleurs de l'application">
+        <button class="theme-dot theme-dot--bleus" data-theme-btn="bleus" role="radio" title="Les Bleus"><span>Bleus</span></button>
+        <button class="theme-dot theme-dot--tfc" data-theme-btn="tfc" role="radio" title="Toulouse FC"><svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true"><path d="M50 50 38 20h24zM50 50l30-12v24zM50 50l12 30H38zM50 50 20 62V38z"/><circle cx="38" cy="12" r="7"/><circle cx="62" cy="12" r="7"/><circle cx="88" cy="38" r="7"/><circle cx="88" cy="62" r="7"/><circle cx="38" cy="88" r="7"/><circle cx="62" cy="88" r="7"/><circle cx="12" cy="38" r="7"/><circle cx="12" cy="62" r="7"/></svg><span>TFC</span></button>
+        <button class="theme-dot theme-dot--stade" data-theme-btn="stade" role="radio" title="Stade Toulousain"><span>Stade</span></button>
+        <button class="theme-dot theme-dot--forest" data-theme-btn="forest" role="radio" title="Nottingham Forest"><svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true"><path d="M50 4c-10 0-17 8-17 16-9 1-15 9-14 17-8 3-11 12-7 20 4 7 12 10 19 8 2 6 9 9 16 8v23h6V73c7 1 14-2 16-8 7 2 15-1 19-8 4-8 1-17-7-20 1-8-5-16-14-17 0-8-7-16-17-16z"/></svg><span>Forest</span></button>
+      </div>
+      <button class="icon-btn" id="btn-text" title="Agrandir le texte" aria-label="Agrandir le texte" aria-pressed="false"><span class="aa"><small>A</small>A</span></button>
+      <button class="icon-btn" id="btn-settings" title="Mes équipes et réglages" aria-label="Réglages">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Zm8.9-2.6-.1.9 2 1.6-2 3.4-2.4-.8a8 8 0 0 1-1.6.9L16.4 21h-4l-.4-2.6a8 8 0 0 1-1.6-.9l-2.4.8-2-3.4 2-1.6a8 8 0 0 1 0-1.8l-2-1.6 2-3.4 2.4.8a8 8 0 0 1 1.6-.9L12.4 3h4l.4 2.6a8 8 0 0 1 1.6.9l2.4-.8 2 3.4-2 1.6c.1.4.1.8.1 1.2Z" transform="translate(-2.4 0)"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="club-ribbon" aria-hidden="true">
+    <span class="rb rb--fr"></span><span class="rb rb--tfc"></span><span class="rb rb--stade"></span><span class="rb rb--forest"></span>
+  </div>
+
+  <main class="page">
+    <section id="hero" class="hero" aria-live="polite"></section>
+
+    <section class="controls" aria-label="Filtres">
+      <div class="quick-days" role="group" aria-label="Aller à">
+        <button class="pill" data-go="today">Aujourd'hui</button>
+        <button class="pill" data-go="tomorrow">Demain</button>
+        <button class="pill" data-go="weekend">Ce week-end</button>
+      </div>
+      <div class="sport-filters" id="sport-filters" role="group" aria-label="Sports"></div>
+      <div class="controls-right">
+        <label class="toggle">
+          <input type="checkbox" id="only-big">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span>🔥 L'essentiel seulement</span>
+        </label>
+        <div class="search">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M10 3a7 7 0 0 1 5.6 11.2l4.6 4.6-1.4 1.4-4.6-4.6A7 7 0 1 1 10 3Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z"/></svg>
+          <input type="search" id="search" placeholder="Chercher une équipe, un joueur…" autocomplete="off">
+        </div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <aside class="calendar-panel" aria-label="Calendrier">
+        <div class="cal-head">
+          <button class="icon-btn small" id="prev-month" aria-label="Mois précédent">‹</button>
+          <h2 id="month-title">—</h2>
+          <button class="icon-btn small" id="next-month" aria-label="Mois suivant">›</button>
+        </div>
+        <div class="daystrip" id="daystrip"></div>
+        <div class="cal-grid" id="calendar"></div>
+        <ul class="legend" id="legend"></ul>
+      </aside>
+
+      <section class="agenda" id="agenda" aria-live="polite"></section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p id="data-status" class="data-status">Chargement des calendriers…</p>
+    <p class="fineprint">Horaires à l'heure de Paris. Calendriers : ESPN (mis à jour en direct).
+      Les chaînes indiquées sont celles qui détiennent les droits pour la saison 2026-27 :
+      un diffuseur peut changer au dernier moment, un coup d'œil au programme TV ne fait pas de mal.</p>
+  </footer>
+
+  <dialog id="event-dialog" class="dialog"></dialog>
+  <dialog id="settings-dialog" class="dialog"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/espn.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
