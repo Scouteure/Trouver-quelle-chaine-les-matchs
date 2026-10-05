@@ -108,6 +108,7 @@
     const flag = a.flag || {};
     return {
       id: c.id || a.id || '',
+      tbd: !(a.displayName || a.fullName),
       name: a.displayName || a.fullName || 'À déterminer',
       raw: a.displayName || '',
       short: a.shortName || a.displayName || 'À déterminer',
@@ -174,6 +175,21 @@
     return out;
   }
 
+  // ESPN publie parfois le même match deux fois (ou une version « fantôme »
+  // jamais mise à jour). On garde, pour une même affiche le même jour, la
+  // version la plus avancée (terminé > en cours > à venir).
+  const STATE_RANK = { post: 3, in: 2, pre: 1 };
+  function dedupe(list) {
+    const best = {};
+    list.forEach(function (ev) {
+      if (!ev.home || !ev.away) { best[ev.id] = ev; return; }
+      const k = ev.start.slice(0, 10) + '|' + [ev.home.id, ev.away.id].sort().join('|');
+      const cur = best[k];
+      if (!cur || (STATE_RANK[ev.status.state] || 0) > (STATE_RANK[cur.status.state] || 0)) best[k] = ev;
+    });
+    return Object.keys(best).map(function (k) { return best[k]; });
+  }
+
   function normalizeTennis(league, json) {
     const out = [];
     (json.events || []).forEach(function (t) {
@@ -194,6 +210,8 @@
           matches++;
           const a = cs.find(function (x) { return x.order === 1; }) || cs[0];
           const b = cs.find(function (x) { return x.order === 2; }) || cs[1];
+          // Tableau pas encore rempli (« À déterminer » contre « À déterminer ») : rien à afficher.
+          if (!(a.athlete && a.athlete.displayName) && !(b.athlete && b.athlete.displayName)) return;
           out.push({
             id: league.key + ':' + t.id + ':' + c.id,
             league: league.key,
@@ -266,7 +284,7 @@
   function normalize(league, json) {
     if (league.kind === 'tennis') return normalizeTennis(league, json);
     if (league.kind === 'racing') return normalizeRacing(league, json);
-    return normalizeTeamSport(league, json);
+    return dedupe(normalizeTeamSport(league, json));
   }
 
   function scoreboardUrl(league, dates) {

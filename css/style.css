@@ -395,7 +395,9 @@ button { cursor: pointer; }
 
 /* Chaînes */
 .channels { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.ch-line { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-width: 0; }
+.ch-line { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: start; gap: 6px; min-width: 0; }
+.ch-line .flag { margin-top: 3px; }
+.chs { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .ch-line .flag { flex: none; width: 20px; height: 14px; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.2); }
 .ch-line .flag svg { display: block; width: 100%; height: 100%; }
 .ch {
@@ -405,6 +407,32 @@ button { cursor: pointer; }
 }
 .ch .free { font-size: .78em; font-weight: 800; padding: 0 5px; border-radius: 4px; background: #23c16b; color: #04140a; text-transform: uppercase; letter-spacing: .04em; }
 .ch-none { color: var(--faint); font-size: .8em; font-style: italic; }
+
+/* 5 pays : deux colonnes de chaînes dans les lignes du programme */
+.row .channels, .hot-card .channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 10px; }
+.ch--mine { box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 0 0 2px #23c16b; }
+.ch .tick { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: #23c16b; color: #04140a; font-size: 10px; font-weight: 900; }
+.mini-btn { flex: none; padding: 5px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: transparent; font-weight: 700; font-size: .82em; }
+.mini-btn:hover { background: var(--panel-2); }
+
+/* Prochains immanquables */
+.upcoming:empty { display: none; }
+.upcoming { margin: -4px 0 18px; }
+.upcoming .section-title { margin-top: 0; }
+.up-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.up-card {
+  --c1: var(--accent); --c3: var(--accent-2);
+  flex: none; width: 190px; scroll-snap-align: start; text-align: left; display: flex; flex-direction: column; gap: 5px;
+  padding: 10px 12px; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--c1) 60%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c1) 28%, transparent), transparent 70%), var(--panel);
+  transition: transform .15s ease, box-shadow .2s;
+}
+.up-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px -8px var(--c1); }
+.up-when { font-size: .74em; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.up-team { display: flex; align-items: center; gap: 7px; font-weight: 700; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.up-team img, .up-team .logo-ph { width: 20px; height: 20px; object-fit: contain; flex: none; }
+.up-ch { margin-top: 2px; }
+.up-ch .ch { font-size: .74em; }
 
 /* Groupes par compétition */
 .group { border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); margin-bottom: 10px; overflow: hidden; }
@@ -581,4 +609,6 @@ button { cursor: pointer; }
   .quick-days .pill { flex: 1; justify-content: center; padding: 8px 6px; }
   .sport-filters { width: 100%; }
   .sport-filters .pill { padding: 6px 10px; }
+  /* Sur téléphone : la chaîne principale de chaque pays suffit dans la liste (toutes dans la fiche du match). */
+  .row .chs .ch:nth-child(n+2), .hot-card .chs .ch:nth-child(n+2) { display: none; }
 }

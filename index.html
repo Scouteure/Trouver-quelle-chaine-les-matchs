@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Le Guide Sport de Papa</title>
-  <meta name="description" content="Tous les matchs, toutes les chaînes : France, États-Unis, Royaume-Uni.">
+  <meta name="description" content="Tous les matchs, toutes les chaînes : France, Espagne, Italie, États-Unis, Royaume-Uni.">
   <meta name="theme-color" content="#070b1a">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -59,6 +59,7 @@
 
   <main class="page">
     <section id="hero" class="hero" aria-live="polite"></section>
+    <section id="upcoming" class="upcoming" aria-label="Prochains immanquables"></section>
 
     <section class="controls" aria-label="Filtres">
       <div class="quick-days" role="group" aria-label="Aller à">
@@ -72,6 +73,11 @@
           <input type="checkbox" id="only-big">
           <span class="toggle-track"><span class="toggle-thumb"></span></span>
           <span>🔥 L'essentiel seulement</span>
+        </label>
+        <label class="toggle" title="Uniquement les matchs visibles avec vos abonnements (à régler dans ⚙)">
+          <input type="checkbox" id="only-mine">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span>📺 Ce que je peux voir</span>
         </label>
         <div class="search">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M10 3a7 7 0 0 1 5.6 11.2l4.6 4.6-1.4 1.4-4.6-4.6A7 7 0 1 1 10 3Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z"/></svg>

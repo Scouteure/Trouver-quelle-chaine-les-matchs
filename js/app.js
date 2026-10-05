@@ -19,7 +19,10 @@
     us: '<svg viewBox="0 0 38 20"><rect width="38" height="20" fill="#fff"/><g fill="#b22234"><rect width="38" height="1.54"/><rect y="3.08" width="38" height="1.54"/><rect y="6.15" width="38" height="1.54"/><rect y="9.23" width="38" height="1.54"/><rect y="12.3" width="38" height="1.54"/><rect y="15.4" width="38" height="1.54"/><rect y="18.46" width="38" height="1.54"/></g><rect width="15.2" height="10.77" fill="#3c3b6e"/></svg>',
     uk: '<svg viewBox="0 0 60 30"><rect width="60" height="30" fill="#012169"/><path d="M0 0l60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0l60 30M60 0L0 30" stroke="#c8102e" stroke-width="2.4"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#c8102e" stroke-width="6"/></svg>',
   };
-  const REGION_LABEL = { fr: 'France', us: 'États-Unis', uk: 'Royaume-Uni' };
+  FLAGS.es = '<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#c60b1e"/><rect y=".5" width="3" height="1" fill="#ffc400"/></svg>';
+  FLAGS.it = '<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>';
+  const REGION_LABEL = { fr: 'France', es: 'Espagne', it: 'Italie', us: 'États-Unis', uk: 'Royaume-Uni' };
+  const REGIONS = ['fr', 'es', 'it', 'us', 'uk'];
 
   // Croix occitane (Toulouse), arbre (Forest), étoiles (les Bleus), ballon ovale (Stade)
   const MOTIFS = {
@@ -98,9 +101,12 @@
     bigText: false,
     onlyBig: false,
     sports: { foot: true, tennis: true, rugby: true, f1: true, nba: true, nfl: true },
-    regions: { fr: true, us: true, uk: true },
+    regions: { fr: true, es: true, it: true, us: true, uk: true },
     favOff: {},
     custom: [],
+    subs: {},
+    subsSet: false,
+    onlyMine: false,
   };
   const prefs = loadPrefs();
 
@@ -111,6 +117,7 @@
         sports: Object.assign({}, defaults.sports, raw.sports),
         regions: Object.assign({}, defaults.regions, raw.regions),
         favOff: Object.assign({}, raw.favOff),
+        subs: Object.assign({}, raw.subs),
         custom: Array.isArray(raw.custom) ? raw.custom : [],
       });
     } catch (e) {
@@ -139,6 +146,7 @@
     loading: new Set(),
     fromCache: new Set(),
     errors: new Set(),
+    retried: new Set(),
     lastUpdate: null,
     usingSnapshot: false,
     expanded: new Set(),
@@ -149,6 +157,10 @@
     const league = LEAGUE_BY_KEY[ev.league];
     if (!league) return null;
     ev.dayKey = dayKey(ev.start);
+    // Un match affiché « en direct » depuis plus de 6 h (données anciennes) est forcément fini.
+    if (ev.status.state === 'in' && Date.now() - new Date(ev.start) > 6 * 3600000) {
+      ev.status = Object.assign({}, ev.status, { state: 'post', detail: '' });
+    }
     ev.rating = C.rate(ev, league, favorites);
     ev.channels = C.channelsFor(ev, league);
     ev.note = typeof league.note === 'function' ? league.note(ev) : (league.note || '');
@@ -175,7 +187,7 @@
   }
 
   // --- Cache local (évite de tout retélécharger à chaque ouverture) ---
-  const CACHE_PREFIX = 'guide-sport-papa:cache:v1:';
+  const CACHE_PREFIX = 'guide-sport-papa:cache:v2:';
   function cacheGet(k) {
     try { return JSON.parse(localStorage.getItem(CACHE_PREFIX + k) || 'null'); } catch (e) { return null; }
   }
@@ -191,6 +203,13 @@
       } catch (e2) { /* tant pis */ }
     }
   }
+  // Ménage : les caches d'anciennes versions de l'appli peuvent contenir des erreurs corrigées depuis.
+  try {
+    Object.keys(localStorage).forEach(function (x) {
+      if (x.indexOf('guide-sport-papa:cache:') === 0 && x.indexOf(CACHE_PREFIX) !== 0) localStorage.removeItem(x);
+    });
+  } catch (e) { /* stockage indisponible */ }
+
   function cacheTTL(ym) {
     const cur = todayKey().slice(0, 7).replace('-', '');
     if (ym === cur) return 10 * 60 * 1000;          // mois en cours : 10 min
@@ -233,6 +252,11 @@
           state.lastUpdate = new Date();
         }, function () {
           state.errors.add(k);
+          // Le calendrier ne répond pas toujours du premier coup : nouvel essai dans 20 s.
+          if (!state.retried.has(k)) {
+            state.retried.add(k);
+            setTimeout(function () { loadMonth(ym, true); }, 20000);
+          }
         }).then(function () {
           state.loading.delete(k);
           scheduleRender();
@@ -302,9 +326,19 @@
     return out;
   }
 
+  // Match jamais commencé alors que l'heure est passée depuis longtemps :
+  // entrée « fantôme » du calendrier (ou match annulé sans mise à jour).
+  function isGhost(ev) {
+    if (ev.status.state !== 'pre' || ev.status.postponed) return false;
+    const end = ev.kind === 'tournament' && ev.end ? new Date(ev.end) : new Date(ev.start);
+    return Date.now() - end > 8 * 3600000;
+  }
+
   function visible(ev) {
     if (!prefs.sports[ev.sport]) return false;
+    if (isGhost(ev)) return false;
     if (prefs.onlyBig && ev.rating.level < 2) return false;
+    if (prefs.onlyMine && prefs.subsSet && !canWatch(ev)) return false;
     return true;
   }
 
@@ -336,28 +370,41 @@
 
   function render() {
     renderHero();
+    renderUpcoming();
     renderCalendar();
     renderAgenda();
     renderStatus();
   }
 
   // ----------------------------------------------------------- Chaînes
-  function chip(name) {
+  // Abonnements de Papa (France) : les chaînes gratuites comptent toujours.
+  function owns(name) {
+    const meta = C.CHANNELS[name] || {};
+    if (meta.free) return true;
+    return C.SUBSCRIPTIONS.some(function (sub) { return prefs.subs[sub.key] && sub.match.test(name); });
+  }
+  function canWatch(ev) {
+    return (ev.channels.fr || []).some(owns);
+  }
+
+  function chip(name, region) {
     const meta = C.CHANNELS[name] || {};
     const style = '--chbg:' + (meta.bg || '#333') + ';--chfg:' + (meta.fg || '#fff');
-    const title = meta.free ? 'Chaîne gratuite' : (meta.web ? 'Application / streaming' : 'Chaîne payante');
-    return '<span class="ch" style="' + style + '" title="' + title + '">' + esc(name) +
+    const mine = region === 'fr' && prefs.subsSet && owns(name);
+    const title = (mine ? 'Vous l\'avez · ' : '') + (meta.free ? 'Chaîne gratuite' : (meta.web ? 'Application / streaming' : 'Chaîne payante'));
+    return '<span class="ch' + (mine ? ' ch--mine' : '') + '" style="' + style + '" title="' + title + '">' +
+      (mine ? '<span class="tick" aria-hidden="true">✓</span>' : '') + esc(name) +
       (meta.free ? '<span class="free">gratuit</span>' : '') + '</span>';
   }
 
   function channelsHTML(ev, opts) {
     opts = opts || {};
     const lines = [];
-    ['fr', 'us', 'uk'].forEach(function (r) {
+    REGIONS.forEach(function (r) {
       if (!prefs.regions[r]) return;
-      const list = (ev.channels[r] || []).slice(0, opts.max || 3);
-      const content = list.length ? list.map(chip).join('') : '<span class="ch-none">Pas de diffusion connue</span>';
-      lines.push('<div class="ch-line"><span class="flag" title="' + REGION_LABEL[r] + '">' + FLAGS[r] + '</span>' + content + '</div>');
+      const list = (ev.channels[r] || []).slice(0, opts.max || 2);
+      const content = list.length ? list.map(function (n) { return chip(n, r); }).join('') : '<span class="ch-none">Pas de diffusion connue</span>';
+      lines.push('<div class="ch-line"><span class="flag" title="' + REGION_LABEL[r] + '">' + FLAGS[r] + '</span><span class="chs">' + content + '</span></div>');
     });
     return '<div class="channels">' + lines.join('') + '</div>';
   }
@@ -508,6 +555,32 @@
       '<div class="hero-actions"><button class="btn btn--primary" data-ics="' + esc(ev.id) + '">📅 Me le rappeler</button>' +
       '<button class="btn" data-ev="' + esc(ev.id) + '">Détails</button></div></div>' +
       '</div></div>';
+  }
+
+  // ----------------------------------------------------------- Prochains immanquables
+  function renderUpcoming() {
+    const el = $('#upcoming');
+    const hero = pickHero();
+    const now = Date.now();
+    const list = allEvents().filter(function (ev) {
+      return ev.rating.level >= 3 && visible(ev) && ev.status.state === 'pre' && (!hero || ev.id !== hero.id) &&
+        new Date(ev.start) > now - 3600000 && new Date(ev.start) < now + 30 * 86400000;
+    }).sort(sortByTime).slice(0, 10);
+    if (!list.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="section-title">🔥 Prochains immanquables</div><div class="up-strip">' + list.map(function (ev) {
+      const theme = ev.rating.fav ? ev.rating.fav.theme : 'hot';
+      const rel = relativeDay(ev.dayKey);
+      const when = (rel || cap(fmtShortDay.format(keyToUTC(ev.dayKey)).replace('.', ''))) +
+        (ev.timeValid ? ' · ' + hhmm(new Date(ev.start)) : '');
+      const fr = (ev.channels.fr || [])[0];
+      const teams = ev.home && ev.away
+        ? '<span class="up-team">' + logo(ev.home, 20) + esc(ev.home.name) + '</span>' +
+          '<span class="up-team">' + logo(ev.away, 20) + esc(ev.away.name) + '</span>'
+        : '<span class="up-team">' + esc(ev.title || '') + '</span>';
+      return '<button class="up-card theme-' + theme + '" data-day="' + ev.dayKey + '" data-focus="' + esc(ev.id) + '">' +
+        '<span class="up-when">' + esc(when) + '</span>' + teams +
+        '<span class="up-ch">' + (fr ? chip(fr, 'fr') : '<span class="ch-none">Chaîne à venir</span>') + '</span></button>';
+    }).join('') + '</div>';
   }
 
   // ----------------------------------------------------------- Calendrier
@@ -788,10 +861,10 @@
       ? '<div class="dlg-times"><div><b>' + hhmm(d) + '</b><span>Paris</span></div><div><b>' + fmtTimeLDN.format(d).replace(':', 'h') +
         '</b><span>Londres</span></div><div><b>' + fmtTimeNY.format(d).replace(':', 'h') + '</b><span>New York</span></div></div>'
       : '<p class="dlg-info">Horaire pas encore fixé.</p>';
-    const ch = ['fr', 'us', 'uk'].map(function (r) {
+    const ch = REGIONS.map(function (r) {
       const list = ev.channels[r] || [];
       return '<div class="lbl"><span class="flag">' + FLAGS[r] + '</span>' + REGION_LABEL[r] + '</div><div class="list">' +
-        (list.length ? list.map(chip).join('') : '<span class="ch-none">Pas de diffusion connue</span>') + '</div>';
+        (list.length ? list.map(function (n) { return chip(n, r); }).join('') : '<span class="ch-none">Pas de diffusion connue</span>') + '</div>';
     }).join('');
     const info = [cap(fmtLongDay.format(keyToUTC(ev.dayKey))), ev.round, ev.venue].filter(Boolean).map(esc).join(' · ');
     const why = ev.rating.fav ? '🔥 ' + ev.rating.fav.badge : (ev.rating.reasons[0] ? '⭐ ' + ev.rating.reasons[0] : '');
@@ -814,38 +887,78 @@
 
   const DURATION = { foot: 120, rugby: 120, tennis: 150, f1: 120, nba: 150, nfl: 210 };
 
-  function downloadICS(id) {
-    const ev = state.events.get(id);
-    if (!ev) return;
+  function icsEvent(ev) {
     const league = LEAGUE_BY_KEY[ev.league];
     const start = new Date(ev.start);
     const end = new Date(start.getTime() + (DURATION[ev.sport] || 120) * 60000);
     const stamp = function (d) { return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, ''); };
     const title = (ev.home && ev.away ? ev.home.name + ' – ' + ev.away.name : ev.title + ' · ' + ev.round) +
       ' (' + (ev.sport === 'tennis' ? ev.tournament : league.short) + ')';
-    const chan = ['fr', 'us', 'uk'].map(function (r) {
+    const chan = REGIONS.map(function (r) {
       return REGION_LABEL[r] + ' : ' + ((ev.channels[r] || []).join(', ') || '—');
     }).join('\\n');
     const icsEsc = function (s) { return String(s).replace(/([,;])/g, '\\$1'); };
-    const lines = [
-      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Guide Sport de Papa//FR', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
-      'UID:' + ev.id.replace(/[^\w.-]/g, '-') + '@guide-sport-papa',
-      'DTSTAMP:' + stamp(new Date()),
-      'DTSTART:' + stamp(start), 'DTEND:' + stamp(end),
-      'SUMMARY:' + icsEsc(sportIcon(ev.sport) + ' ' + title),
-      'DESCRIPTION:' + icsEsc('📺 Où regarder :') + '\\n' + icsEsc(chan),
-      ev.venue ? 'LOCATION:' + icsEsc(ev.venue) : '',
-      'BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(title), 'END:VALARM',
-      'END:VEVENT', 'END:VCALENDAR',
-    ].filter(Boolean);
+    // Horaire pas encore fixé : on réserve la journée entière.
+    const when = ev.timeValid
+      ? ['DTSTART:' + stamp(start), 'DTEND:' + stamp(end)]
+      : ['DTSTART;VALUE=DATE:' + ev.dayKey.replace(/-/g, ''), 'DTEND;VALUE=DATE:' + addDays(ev.dayKey, 1).replace(/-/g, '')];
+    return {
+      title: title,
+      lines: [
+        'BEGIN:VEVENT',
+        'UID:' + ev.id.replace(/[^\w.-]/g, '-') + '@guide-sport-papa',
+        'DTSTAMP:' + stamp(new Date()),
+      ].concat(when, [
+        'SUMMARY:' + icsEsc(sportIcon(ev.sport) + ' ' + title),
+        'DESCRIPTION:' + icsEsc('📺 Où regarder :') + '\\n' + icsEsc(chan) +
+          (ev.timeValid ? '' : '\\n' + icsEsc('Horaire pas encore fixé.')),
+        ev.venue ? 'LOCATION:' + icsEsc(ev.venue) : '',
+        'BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(title), 'END:VALARM',
+        'END:VEVENT',
+      ]).filter(Boolean),
+    };
+  }
+
+  function saveICS(events, filename) {
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Guide Sport de Papa//FR', 'CALSCALE:GREGORIAN'];
+    events.forEach(function (ev) { Array.prototype.push.apply(lines, icsEvent(ev).lines); });
+    lines.push('END:VCALENDAR');
     const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = (title.replace(/[^\wÀ-ſ-]+/g, '-').replace(/-+/g, '-').slice(0, 60) || 'match') + '.ics';
+    a.download = (filename.replace(/[^\wÀ-ſ-]+/g, '-').replace(/-+/g, '-').slice(0, 60) || 'match') + '.ics';
     document.body.appendChild(a);
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  function downloadICS(id) {
+    const ev = state.events.get(id);
+    if (!ev) return;
+    saveICS([ev], icsEvent(ev).title);
     toast('📅 Rappel créé : ouvrez le fichier pour l\'ajouter à votre agenda (alerte 30 min avant).');
+  }
+
+  // Tous les prochains matchs d'une équipe de cœur d'un coup (ce mois-ci et le suivant).
+  function exportFavorite(favId) {
+    const fav = activeFavorites().concat(C.FAVORITES).find(function (f) { return f.id === favId; });
+    if (!fav) return;
+    const next = addMonths(monthOf(todayKey()), 1);
+    loadMonth(monthOf(todayKey()));
+    loadMonth(next);
+    toast('⏳ Je rassemble les matchs de ' + fav.label + '…');
+    const started = Date.now();
+    const wait = setInterval(function () {
+      if ((state.loading.size || queue.length || running) && Date.now() - started < 60000) return;
+      clearInterval(wait);
+      const now = Date.now();
+      const list = allEvents().filter(function (ev) {
+        return fav.test(ev) && !isGhost(ev) && ev.status.state !== 'post' && new Date(ev.start) > now - 3 * 3600000;
+      }).sort(sortByTime);
+      if (!list.length) { toast('Aucun match à venir trouvé pour ' + fav.label + '.'); return; }
+      saveICS(list, 'Matchs ' + fav.label);
+      toast('📅 ' + list.length + ' match' + (list.length > 1 ? 's' : '') + ' de ' + fav.label + ' prêts : ouvrez le fichier pour les ajouter à l\'agenda.');
+    }, 400);
   }
 
   let toastTimer;
@@ -862,14 +975,21 @@
   // ===================================================================
   function openSettings() {
     const dlg = $('#settings-dialog');
+    const exportBtn = function (id) {
+      return '<button class="mini-btn" data-export-fav="' + esc(id) + '" title="Ajouter tous ses prochains matchs à l\'agenda">📅 Agenda</button>';
+    };
     const favs = C.FAVORITES.map(function (f) {
       return '<div class="fav-item theme-' + f.theme + '"><span class="sw"></span><label><input type="checkbox" data-fav="' + f.id + '"' +
-        (prefs.favOff[f.id] ? '' : ' checked') + '>' + esc(f.label) + '</label></div>';
+        (prefs.favOff[f.id] ? '' : ' checked') + '>' + esc(f.label) + '</label>' + exportBtn(f.id) + '</div>';
     }).join('') + prefs.custom.map(function (txt, i) {
       return '<div class="fav-item theme-custom"><span class="sw"></span><label>' + esc(txt) + '</label>' +
+        exportBtn(C.makeCustomFavorite(txt).id) +
         '<button class="rm" data-rm="' + i + '" aria-label="Retirer">✕</button></div>';
     }).join('');
-    const regions = ['fr', 'us', 'uk'].map(function (r) {
+    const subs = C.SUBSCRIPTIONS.map(function (sub) {
+      return '<label><input type="checkbox" data-sub="' + sub.key + '"' + (prefs.subs[sub.key] ? ' checked' : '') + '>' + esc(sub.label) + '</label>';
+    }).join('');
+    const regions = REGIONS.map(function (r) {
       return '<label><input type="checkbox" data-region="' + r + '"' + (prefs.regions[r] ? ' checked' : '') + '><span class="flag">' + FLAGS[r] + '</span>' + REGION_LABEL[r] + '</label>';
     }).join('');
     dlg.innerHTML =
@@ -879,6 +999,9 @@
       '<h4>Mises en avant (🔥 immanquables)</h4><div class="fav-list">' + favs + '</div>' +
       '<form class="add-fav" id="add-fav"><input id="add-fav-input" placeholder="Ajouter une équipe ou un joueur (ex. : Marseille, Fils…)" maxlength="40">' +
       '<button class="btn btn--primary" type="submit">Ajouter</button></form>' +
+      '<h4 id="subs-title">📺 Mes abonnements (France)</h4>' +
+      '<p class="dlg-info" style="margin:0 0 8px">Cochez ce que vous avez : vos chaînes seront marquées ✓ et vous pourrez n\'afficher que les matchs que vous pouvez regarder. Les chaînes gratuites (TF1, France 2, M6, L\'Équipe…) comptent toujours.</p>' +
+      '<div class="region-list">' + subs + '</div>' +
       '<h4>Chaînes à afficher</h4><div class="region-list">' + regions + '</div>' +
       '<h4>Données</h4><p class="dlg-info" style="margin:0 0 10px">Le programme se met à jour tout seul (toutes les 15 min, et chaque minute pendant les matchs). Pour forcer :</p>' +
       '<button class="btn" id="force-refresh">🔄 Actualiser maintenant</button>' +
@@ -894,10 +1017,11 @@
       b.setAttribute('aria-checked', String(b.dataset.themeBtn === prefs.theme));
     });
     $('#only-big').checked = !!prefs.onlyBig;
+    $('#only-mine').checked = !!(prefs.onlyMine && prefs.subsSet);
     $('#sport-filters').innerHTML = C.SPORTS.map(function (s) {
       return '<button class="pill" data-sport="' + s.key + '" aria-pressed="' + (!!prefs.sports[s.key]) + '"><span class="emo">' + s.icon + '</span>' + s.label + '</button>';
     }).join('');
-    $('#tag-flags').innerHTML = ['fr', 'us', 'uk'].map(function (r) {
+    $('#tag-flags').innerHTML = REGIONS.map(function (r) {
       return '<span class="flag" style="display:inline-block;width:20px;height:14px;border-radius:3px;overflow:hidden">' + FLAGS[r] + '</span>';
     }).join('');
     const meta = document.querySelector('meta[name="theme-color"]');
@@ -947,6 +1071,16 @@
           document.querySelector('.calendar-panel').classList.remove('show-month');
           $('#agenda').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+        // Depuis « Prochains immanquables » : on amène directement sur le match.
+        if (day.dataset.focus) {
+          const id = day.dataset.focus;
+          requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+              const target = Array.prototype.find.call(document.querySelectorAll('#agenda [data-ev]'), function (x) { return x.dataset.ev === id; });
+              if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+          });
+        }
         return;
       }
       const more = t.closest('[data-more]');
@@ -984,6 +1118,8 @@
         toast(names[prefs.theme] || '');
         return;
       }
+      const exp = t.closest('[data-export-fav]');
+      if (exp) { exportFavorite(exp.dataset.exportFav); return; }
       const rm = t.closest('[data-rm]');
       if (rm) {
         prefs.custom.splice(+rm.dataset.rm, 1);
@@ -1012,6 +1148,21 @@
         savePrefs(); rerateAll(); render();
       } else if (t.dataset.region) {
         prefs.regions[t.dataset.region] = t.checked;
+        savePrefs(); render();
+      } else if (t.dataset.sub) {
+        prefs.subs[t.dataset.sub] = t.checked;
+        prefs.subsSet = true;
+        savePrefs(); applyPrefs(); render();
+      } else if (t.id === 'only-mine') {
+        if (!prefs.subsSet) {
+          t.checked = false;
+          openSettings();
+          const st = document.getElementById('subs-title');
+          if (st) st.scrollIntoView({ block: 'start' });
+          toast('Cochez d\'abord vos abonnements 📺');
+          return;
+        }
+        prefs.onlyMine = t.checked;
         savePrefs(); render();
       } else if (t.id === 'only-big') {
         prefs.onlyBig = t.checked;

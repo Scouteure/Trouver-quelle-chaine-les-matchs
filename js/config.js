@@ -36,6 +36,21 @@
     'Eurosport':         { bg: '#141b4d', fg: '#fff' },
     'Prime Video':       { bg: '#00a8e1', fg: '#04131c', web: true },
     'RMC Sport':         { bg: '#00327d', fg: '#fff' },
+    // Espagne
+    'La 1':              { bg: '#d6001c', fg: '#fff', free: true },
+    'RTVE Play':         { bg: '#d6001c', fg: '#fff', free: true, web: true },
+    'Movistar+':         { bg: '#019df4', fg: '#fff' },
+    'M+ LaLiga':         { bg: '#019df4', fg: '#fff' },
+    // Italie
+    'Rai 1':             { bg: '#0b3a8c', fg: '#fff', free: true },
+    'Rai 2':             { bg: '#0b3a8c', fg: '#fff', free: true },
+    'RaiPlay':           { bg: '#0b3a8c', fg: '#fff', free: true, web: true },
+    'Sky Sport':         { bg: '#0b1e66', fg: '#fff' },
+    'Sky Sport F1':      { bg: '#0b1e66', fg: '#fff' },
+    'NOW':               { bg: '#13c4a3', fg: '#03241e', web: true },
+    'TV8':               { bg: '#e6007e', fg: '#fff', free: true },
+    'Mediaset':          { bg: '#0a2a5c', fg: '#fff', free: true },
+    'SuperTennis':       { bg: '#1c8a3c', fg: '#fff', free: true },
     // USA
     'FOX':               { bg: '#003366', fg: '#fff', free: true },
     'FS1':               { bg: '#003366', fg: '#fff' },
@@ -258,6 +273,82 @@
   ];
 
   // ---------------------------------------------------------------------
+  // Chaînes en Espagne (es) et en Italie (it), saison 2026-27
+  // ---------------------------------------------------------------------
+  const ES_SPAIN = function (ev) { return involves(ev, 'Spain') ? ['La 1', 'RTVE Play'] : null; };
+  const IT_ITALY = function (ev) { return involves(ev, 'Italy') ? ['Rai 1', 'RaiPlay'] : null; };
+  const ES_IT = {
+    'uefa.nations': {
+      es: function (ev) { return ES_SPAIN(ev) || ['DAZN']; },
+      it: function (ev) { return IT_ITALY(ev) || ['Sky Sport', 'NOW']; },
+    },
+    'fifa.friendly': {
+      es: function (ev) { return ES_SPAIN(ev) || []; },
+      it: function (ev) { return IT_ITALY(ev) || []; },
+    },
+    'fra.1': { es: ['DAZN'], it: ['Ligue 1+'] },
+    'eng.1': { es: ['DAZN'], it: ['Sky Sport', 'NOW'] },
+    'uefa.champions': { es: ['Movistar+'], it: ['Sky Sport', 'NOW'] },
+    'uefa.europa': { es: ['Movistar+'], it: ['Sky Sport', 'NOW'] },
+    'uefa.europa.conf': { es: ['Movistar+'], it: ['Sky Sport', 'NOW'] },
+    'esp.1': { es: ['M+ LaLiga', 'DAZN'], it: ['DAZN'] },
+    'ita.1': { es: ['DAZN'], it: ['DAZN', 'Sky Sport'] },
+    'ger.1': { es: ['DAZN'], it: ['Sky Sport', 'NOW'] },
+    'fra.2': { es: [], it: [] },
+    'fra.coupe_de_france': { es: [], it: [] },
+    'eng.league_cup': { es: [], it: [] },
+    'atp': {
+      es: ['Movistar+'],
+      it: function (ev) {
+        if (/Davis/i.test(ev.tournament || '')) return ['SuperTennis'];
+        if (/Finals/i.test(ev.tournament || '')) return ['Sky Sport', 'Mediaset'];
+        return ['Sky Sport', 'NOW'];
+      },
+    },
+    'wta': { es: ['DAZN'], it: ['SuperTennis'] },
+    'rugby.nations': { es: ['Movistar+'], it: ['Sky Sport', 'NOW'] },
+    'rugby.top14': { es: ['Movistar+'], it: ['Sky Sport'] },
+    'rugby.cc': { es: ['Movistar+'], it: ['Sky Sport'] },
+    'f1': {
+      es: ['DAZN'],
+      it: function (ev) {
+        return /Ital|Monza/i.test((ev.title || '') + (ev.venue || '')) ? ['Sky Sport F1', 'TV8'] : ['Sky Sport F1', 'NOW'];
+      },
+    },
+    'nba': { es: ['DAZN'], it: ['Sky Sport', 'Prime Video'] },
+    'nfl': { es: ['DAZN'], it: ['DAZN'] },
+  };
+  const ES_IT_NOTES = {
+    'uefa.champions': 'En Italie, Prime Video diffuse la meilleure affiche du mercredi et TV8 un match gratuit par journée.',
+    'esp.1': 'En Espagne, la journée est partagée entre M+ LaLiga et DAZN (5 matchs chacun).',
+    'ita.1': 'En Italie, DAZN a tous les matchs ; Sky Sport en diffuse aussi 3 par journée.',
+  };
+  LEAGUES.forEach(function (l) {
+    Object.assign(l, ES_IT[l.key] || { es: [], it: [] });
+    const extra = ES_IT_NOTES[l.key];
+    if (!extra) return;
+    const base = l.note;
+    l.note = function (ev) {
+      const b = typeof base === 'function' ? base(ev) : (base || '');
+      return b ? b + ' ' + extra : extra;
+    };
+  });
+
+  // ---------------------------------------------------------------------
+  // Abonnements possibles en France (réglage « Mes abonnements »)
+  // ---------------------------------------------------------------------
+  const SUBSCRIPTIONS = [
+    { key: 'canal', label: 'Canal+', match: /^Canal\+/ },
+    { key: 'bein', label: 'beIN Sports', match: /^beIN Sports(?! USA)/ },
+    { key: 'ligue1', label: 'Ligue 1+', match: /^Ligue 1\+$/ },
+    { key: 'dazn', label: 'DAZN', match: /^DAZN$/ },
+    { key: 'eurosport', label: 'Eurosport', match: /^Eurosport/ },
+    { key: 'prime', label: 'Prime Video', match: /^Prime Video$/ },
+    { key: 'disney', label: 'Disney+', match: /^Disney\+$/ },
+    { key: 'lequipe', label: "L'Équipe live foot", match: /^L'Équipe live foot$/ },
+  ];
+
+  // ---------------------------------------------------------------------
   // Sports (filtres)
   // ---------------------------------------------------------------------
   const SPORTS = [
@@ -406,7 +497,7 @@
       us = ev.us.filter(function (n) { return !/^(ESPN Deportes|Telemundo|Universo|TUDN|Univision)$/.test(n); });
       if (!us.length) us = ev.us.slice();
     }
-    return { fr: fr, us: us, uk: pick(league.uk) };
+    return { fr: fr, es: pick(league.es), it: pick(league.it), us: us, uk: pick(league.uk) };
   }
 
   function makeCustomFavorite(text) {
@@ -427,6 +518,7 @@
 
   root.SportConfig = {
     CHANNELS: CHANNELS,
+    SUBSCRIPTIONS: SUBSCRIPTIONS,
     LEAGUES: LEAGUES,
     SPORTS: SPORTS,
     FAVORITES: FAVORITES,
