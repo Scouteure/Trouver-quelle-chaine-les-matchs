@@ -560,6 +560,7 @@
   // ----------------------------------------------------------- Prochains immanquables
   function renderUpcoming() {
     const el = $('#upcoming');
+    if (!el) return;
     const hero = pickHero();
     const now = Date.now();
     const list = allEvents().filter(function (ev) {
@@ -797,7 +798,8 @@
   function renderStatus() {
     const el = $('#data-status');
     const busy = state.loading.size > 0;
-    $('#btn-refresh').classList.toggle('is-busy', busy || !!state.refreshing);
+    const rb = $('#btn-refresh');
+    if (rb) rb.classList.toggle('is-busy', busy || !!state.refreshing);
     if (busy) { el.innerHTML = '<span class="st-dot warn"></span>Mise à jour des calendriers…'; return; }
     if (state.lastUpdate) {
       el.innerHTML = '<span class="st-dot"></span>Calendriers à jour (' + hhmm(state.lastUpdate) + ')' +
@@ -1016,8 +1018,9 @@
     document.querySelectorAll('[data-theme-btn]').forEach(function (b) {
       b.setAttribute('aria-checked', String(b.dataset.themeBtn === prefs.theme));
     });
-    $('#only-big').checked = !!prefs.onlyBig;
-    $('#only-mine').checked = !!(prefs.onlyMine && prefs.subsSet);
+    // (index.html et app.js peuvent brièvement venir de deux versions différentes après une mise à jour)
+    if ($('#only-big')) $('#only-big').checked = !!prefs.onlyBig;
+    if ($('#only-mine')) $('#only-mine').checked = !!(prefs.onlyMine && prefs.subsSet);
     $('#sport-filters').innerHTML = C.SPORTS.map(function (s) {
       return '<button class="pill" data-sport="' + s.key + '" aria-pressed="' + (!!prefs.sports[s.key]) + '"><span class="emo">' + s.icon + '</span>' + s.label + '</button>';
     }).join('');
@@ -1181,7 +1184,7 @@
     });
 
     $('#btn-settings').addEventListener('click', openSettings);
-    $('#btn-refresh').addEventListener('click', refreshAll);
+    if ($('#btn-refresh')) $('#btn-refresh').addEventListener('click', refreshAll);
     $('#btn-text').addEventListener('click', function () {
       prefs.bigText = !prefs.bigText;
       savePrefs(); applyPrefs();
