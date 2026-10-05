@@ -335,6 +335,20 @@
   });
 
   // ---------------------------------------------------------------------
+  // « Mes équipes » : classement (ESPN, mis à jour tout seul) et forme
+  // ---------------------------------------------------------------------
+  const TEAM_PANELS = [
+    { fav: 'france', name: 'Équipe de France', teamId: '478', standings: { path: 'soccer/uefa.nations', label: 'Ligue des Nations' } },
+    { fav: 'tfc', name: 'Toulouse FC', teamId: '179', standings: { path: 'soccer/fra.1', label: 'Ligue 1' } },
+    { fav: 'stade', name: 'Stade Toulousain', teamId: '25922', standings: { path: 'rugby/270559', label: 'Top 14', rugbySeason: true } },
+    { fav: 'forest', name: 'Nottingham Forest', teamId: '393', standings: { path: 'soccer/eng.1', label: 'Premier League' } },
+    { fav: 'france-rugby', name: 'XV de France', teamId: '', standings: null },
+  ];
+  // Compétitions dont on charge aussi le mois précédent, pour calculer la forme.
+  const FORM_LEAGUES = ['uefa.nations', 'fifa.friendly', 'fra.1', 'eng.1', 'uefa.champions', 'uefa.europa',
+    'uefa.europa.conf', 'fra.coupe_de_france', 'eng.league_cup', 'rugby.top14', 'rugby.cc', 'rugby.nations'];
+
+  // ---------------------------------------------------------------------
   // Abonnements possibles en France (réglage « Mes abonnements »)
   // ---------------------------------------------------------------------
   const SUBSCRIPTIONS = [
@@ -519,6 +533,8 @@
   root.SportConfig = {
     CHANNELS: CHANNELS,
     SUBSCRIPTIONS: SUBSCRIPTIONS,
+    TEAM_PANELS: TEAM_PANELS,
+    FORM_LEAGUES: FORM_LEAGUES,
     LEAGUES: LEAGUES,
     SPORTS: SPORTS,
     FAVORITES: FAVORITES,

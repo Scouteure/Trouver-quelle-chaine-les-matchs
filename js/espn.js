@@ -308,7 +308,59 @@
     throw lastErr;
   }
 
+  // ---------------------------------------------------------------------
+  // Classements
+  // ---------------------------------------------------------------------
+  const STAT_ALIASES = {
+    rank: ['rank'], points: ['points'], played: ['gamesPlayed'],
+    wins: ['wins', 'gamesWon'], draws: ['ties', 'gamesDrawn'], losses: ['losses', 'gamesLost'],
+    diff: ['pointDifferential', 'pointsDifference', 'differential'],
+  };
+
+  function standingsUrl(path, opts) {
+    let url = 'https://site.api.espn.com/apis/v2/sports/' + path + '/standings';
+    if (opts && opts.rugbySeason) {
+      // Pour le rugby, ESPN renvoie par défaut la saison passée : on demande la bonne.
+      const now = new Date();
+      url += '?season=' + (now.getUTCMonth() >= 6 ? now.getUTCFullYear() + 1 : now.getUTCFullYear());
+    }
+    return url;
+  }
+
+  async function fetchStandings(path, opts, fetchImpl) {
+    const f = fetchImpl || fetch;
+    const res = await f(standingsUrl(path, opts));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const groups = (json.children || [json]).filter(function (c) { return c.standings; }).map(function (c) {
+      return {
+        name: translateGroup(c.name) || c.name || '',
+        entries: (c.standings.entries || []).map(function (e) {
+          const stats = {};
+          (e.stats || []).forEach(function (st) { stats[st.name] = st.displayValue != null ? st.displayValue : st.value; });
+          const pick = function (k) {
+            const names = STAT_ALIASES[k];
+            for (let i = 0; i < names.length; i++) if (stats[names[i]] != null && stats[names[i]] !== '') return stats[names[i]];
+            return '';
+          };
+          const t = e.team || {};
+          return {
+            teamId: String(t.id || ''),
+            name: frName(t.displayName || t.name || ''),
+            logo: (t.logos && t.logos[0] && t.logos[0].href) || t.logo || '',
+            rank: +pick('rank') || 0,
+            points: pick('points'), played: pick('played'),
+            wins: pick('wins'), draws: pick('draws'), losses: pick('losses'), diff: pick('diff'),
+            zone: e.note ? { color: (e.note.color || '').replace(/^#+/, '#'), label: e.note.description || '' } : null,
+          };
+        }).sort(function (a, b) { return a.rank - b.rank; }),
+      };
+    });
+    return { groups: groups };
+  }
+
   return {
+    fetchStandings: fetchStandings,
     fetchLeague: fetchLeague,
     normalize: normalize,
     scoreboardUrl: scoreboardUrl,

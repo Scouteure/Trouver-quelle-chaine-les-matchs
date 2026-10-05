@@ -229,9 +229,10 @@
     }
   }
 
-  function loadMonth(ym, force) {
+  function loadMonth(ym, force, onlyKeys) {
     const espnYm = ym.replace('-', '');
     C.LEAGUES.forEach(function (league) {
+      if (onlyKeys && onlyKeys.indexOf(league.key) === -1) return;
       const k = league.key + '|' + espnYm;
       const cached = cacheGet(k);
       if (cached && !state.fromCache.has(k)) {
@@ -255,7 +256,7 @@
           // Le calendrier ne répond pas toujours du premier coup : nouvel essai dans 20 s.
           if (!state.retried.has(k)) {
             state.retried.add(k);
-            setTimeout(function () { loadMonth(ym, true); }, 20000);
+            setTimeout(function () { loadMonth(ym, true, [league.key]); }, 20000);
           }
         }).then(function () {
           state.loading.delete(k);
@@ -369,8 +370,10 @@
   }
 
   function render() {
+    renderGreeting();
     renderHero();
     renderUpcoming();
+    renderTeams();
     renderCalendar();
     renderAgenda();
     renderStatus();
@@ -582,6 +585,256 @@
         '<span class="up-when">' + esc(when) + '</span>' + teams +
         '<span class="up-ch">' + (fr ? chip(fr, 'fr') : '<span class="ch-none">Chaîne à venir</span>') + '</span></button>';
     }).join('') + '</div>';
+  }
+
+  // ----------------------------------------------------------- Le petit mot du fiston
+  const GREET_KEY = 'guide-sport-papa:greet:v1';
+  function greetState() {
+    try { return JSON.parse(localStorage.getItem(GREET_KEY) || '{}'); } catch (e) { return {}; }
+  }
+  function saveGreet(st) {
+    try { localStorage.setItem(GREET_KEY, JSON.stringify(st)); } catch (e) { /* tant pis */ }
+  }
+
+  function favSummary() {
+    const now = Date.now();
+    const today = todayKey();
+    const favs = allEvents().filter(function (ev) {
+      return ev.rating.fav && !isGhost(ev) && ev.status.state !== 'post' && new Date(ev.start) > now - 3 * 3600000;
+    }).sort(sortByTime);
+    const label = function (ev) {
+      const what = ev.home && ev.away ? ev.home.name + ' – ' + ev.away.name : ev.title;
+      const ch = (ev.channels.fr || [])[0];
+      return '<b>' + esc(what) + '</b>' + (ev.timeValid ? ' à ' + hhmm(new Date(ev.start)) : '') + (ch ? ' sur ' + esc(ch) : '');
+    };
+    const todays = favs.filter(function (ev) { return ev.dayKey === today; });
+    if (todays.length) {
+      return (todays[0].status.state === 'in' ? '🔴 En ce moment : ' : '📺 Aujourd\'hui : ') + todays.map(label).join(', puis ');
+    }
+    if (favs.length) {
+      const ev = favs[0];
+      const rel = relativeDay(ev.dayKey);
+      return '📅 Prochain rendez-vous : ' + label(ev) + ', ' + (rel ? rel.toLowerCase() : fmtLongDay.format(keyToUTC(ev.dayKey)));
+    }
+    return '';
+  }
+
+  function renderGreeting() {
+    const el = $('#greeting');
+    if (!el) return;
+    const st = greetState();
+    if (st.dismissed === todayKey()) { el.innerHTML = ''; return; }
+    const h = +fmtTime.format(new Date()).slice(0, 2);
+    const evening = h >= 18 || h < 4;
+    const summary = state.firstLoadDone ? favSummary() : '';
+    el.innerHTML = '<div class="greet">' +
+      '<span class="greet-emo" aria-hidden="true">' + (evening ? '🌙' : '☀️') + '</span>' +
+      '<div class="greet-text"><p class="greet-title">' + (evening ? 'Bonne soirée Papa !' : 'Bonne journée Papa !') + '</p>' +
+      '<p class="greet-from">de la part de ton fiston ❤️</p>' +
+      (summary ? '<p class="greet-sum">' + summary + '</p>' : '') + '</div>' +
+      '<button class="icon-btn small greet-close" data-greet-close aria-label="Masquer le message pour aujourd\'hui">✕</button></div>';
+  }
+
+  // Première ouverture : la surprise !
+  function welcomeOnce() {
+    const st = greetState();
+    if (st.welcomed) return;
+    const dlg = $('#welcome-dialog');
+    if (!dlg) return;
+    dlg.innerHTML =
+      '<div class="welcome">' +
+      '<div class="welcome-gift" aria-hidden="true">🎁</div>' +
+      '<h3>Surprise, Papa !</h3>' +
+      '<p>Je t\'ai fabriqué <b>ton propre guide du sport</b> : tous les matchs, et surtout <b>sur quelle chaîne les regarder</b>.</p>' +
+      '<p>Les Bleus, le Téfécé, le Stade et Forest sont mis en avant 🔥, avec leurs résultats et leur classement, tenus à jour tout seuls.</p>' +
+      '<p class="welcome-sign">Bonne journée, et bons matchs !<br><b>Ton fiston ❤️</b></p>' +
+      '<button class="btn btn--primary welcome-go" data-welcome-go>C\'est parti ! ⚽</button>' +
+      '</div>';
+    showDialog(dlg);
+    confetti();
+  }
+
+  function confetti() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const colors = ['#0055a4', '#ffffff', '#ef4135', '#7b3fb8', '#f2c230', '#e2001a', '#dd0000'];
+    const box = document.createElement('div');
+    box.className = 'confetti';
+    for (let i = 0; i < 110; i++) {
+      const c = document.createElement('i');
+      c.style.left = (Math.random() * 100) + 'vw';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDelay = (Math.random() * 0.9) + 's';
+      c.style.animationDuration = (2.4 + Math.random() * 1.8) + 's';
+      c.style.transform = 'rotate(' + Math.floor(Math.random() * 360) + 'deg)';
+      box.appendChild(c);
+    }
+    document.body.appendChild(box);
+    setTimeout(function () { box.remove(); }, 5200);
+  }
+
+  // ----------------------------------------------------------- Mes équipes (forme & classement)
+  const STD_PREFIX = 'guide-sport-papa:std:v1:';
+  // Zones du classement (libellés ESPN en anglais), du plus précis au plus général
+  const ZONES_FR = [
+    [/champions league qualif/i, 'Barrages Ligue des Champions'], [/champions league/i, 'Ligue des Champions'],
+    [/europa league qualif/i, 'Barrages Ligue Europa'], [/europa league/i, 'Ligue Europa'],
+    [/conference league qualif/i, 'Barrages Ligue Conférence'], [/conference league/i, 'Ligue Conférence'],
+    [/qualifies for qfs.*promotion playoffs/i, 'Barrages (quarts ou montée)'], [/qualifies for qfs/i, 'Quarts de finale ou montée'],
+    [/relegation play/i, 'Barrage de relégation'], [/relegation/i, 'Relégation'],
+    [/promotion/i, 'Montée'], [/play-?off/i, 'Phase finale'],
+  ];
+  function zoneFr(label) {
+    for (let i = 0; i < ZONES_FR.length; i++) if (ZONES_FR[i][0].test(label || '')) return ZONES_FR[i][1];
+    return label || '';
+  }
+
+  function loadStandings(force) {
+    state.standings = state.standings || {};
+    C.TEAM_PANELS.forEach(function (panel) {
+      const cfg = panel.standings;
+      if (!cfg || prefs.favOff[panel.fav]) return;
+      const k = STD_PREFIX + cfg.path;
+      let cached = null;
+      try { cached = JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { /* rien */ }
+      if (cached && !state.standings[cfg.path]) state.standings[cfg.path] = cached.data;
+      if (cached && !force && Date.now() - cached.t < 30 * 60000) return;
+      if (state.loading.has(k)) return;
+      state.loading.add(k);
+      enqueue(function () {
+        return D.fetchStandings(cfg.path, cfg).then(function (data) {
+          state.standings[cfg.path] = data;
+          try { localStorage.setItem(k, JSON.stringify({ t: Date.now(), data: data })); } catch (e) { /* plein */ }
+        }, function () { /* on garde l'ancien classement */ }).then(function () {
+          state.loading.delete(k);
+          scheduleRender();
+        });
+      });
+    });
+  }
+
+  function standingOf(panel) {
+    if (!panel.standings || !state.standings) return null;
+    const data = state.standings[panel.standings.path];
+    if (!data) return null;
+    for (let i = 0; i < data.groups.length; i++) {
+      const g = data.groups[i];
+      for (let j = 0; j < g.entries.length; j++) {
+        if (g.entries[j].teamId === panel.teamId) return { group: g, entry: g.entries[j] };
+      }
+    }
+    return null;
+  }
+
+  // Le côté (domicile / extérieur) de l'équipe de cœur dans un match
+  function favSide(fav, ev) {
+    const blank = { name: '', raw: '' };
+    if (fav.test(Object.assign({}, ev, { away: blank }))) return 'home';
+    if (fav.test(Object.assign({}, ev, { home: blank }))) return 'away';
+    return null;
+  }
+
+  function formOf(fav) {
+    return allEvents().filter(function (ev) {
+      return ev.home && ev.away && ev.status.state === 'post' && fav.test(ev);
+    }).sort(function (a, b) { return new Date(b.start) - new Date(a.start); }).slice(0, 5).reverse().map(function (ev) {
+      const side = favSide(fav, ev) || 'home';
+      const me = ev[side], them = ev[side === 'home' ? 'away' : 'home'];
+      let res = 'N';
+      if (me.winner) res = 'V';
+      else if (them.winner) res = 'D';
+      else if (me.score !== '' && them.score !== '' && +me.score !== +them.score) res = +me.score > +them.score ? 'V' : 'D';
+      return {
+        res: res, ev: ev,
+        tip: ev.home.name + ' ' + ev.home.score + '–' + ev.away.score + ' ' + ev.away.name + ' · ' +
+          competitionLabel(ev) + ' · ' + fmtShortDay.format(keyToUTC(ev.dayKey)),
+      };
+    });
+  }
+
+  function nextOf(fav) {
+    const now = Date.now();
+    return allEvents().filter(function (ev) {
+      return fav.test(ev) && !isGhost(ev) && ev.status.state !== 'post' && new Date(ev.start) > now - 3 * 3600000;
+    }).sort(sortByTime)[0] || null;
+  }
+
+  function ordinal(n) { return n === 1 ? '1er' : n + 'e'; }
+
+  function renderTeams() {
+    const el = $('#teams');
+    if (!el) return;
+    const favById = {};
+    C.FAVORITES.forEach(function (f) { favById[f.id] = f; });
+    const cards = C.TEAM_PANELS.filter(function (p) { return !prefs.favOff[p.fav] && favById[p.fav]; }).map(function (panel) {
+      const fav = favById[panel.fav];
+      const st = standingOf(panel);
+      const form = formOf(fav);
+      const next = nextOf(fav);
+      if (!st && !form.length && !next) return '';
+      const logoUrl = st ? st.entry.logo : ((form[0] && form[0].ev[favSide(fav, form[0].ev) || 'home'].logo) || '');
+      const rank = st
+        ? '<button class="team-rank" data-table="' + esc(panel.fav) + '" title="Voir le classement complet">' +
+          '<b>' + ordinal(st.entry.rank) + '</b> ' + esc(panel.standings.label) +
+          (st.group.entries.length < 10 ? ' · ' + esc(st.group.name) : '') +
+          ' <span>· ' + esc(st.entry.points) + ' pts · ' + esc(st.entry.played) + ' j.</span> <span class="chev">›</span></button>'
+        : '';
+      const formHTML = form.length
+        ? '<div class="form" aria-label="5 derniers résultats">' + form.map(function (f) {
+            return '<span class="form-pill form-' + f.res + '" title="' + esc(f.tip) + '" data-ev="' + esc(f.ev.id) + '">' + f.res + '</span>';
+          }).join('') + '<span class="form-lbl" title="Du plus ancien (à gauche) au plus récent (à droite)">derniers résultats →</span></div>'
+        : '<div class="form"><span class="form-lbl">Pas encore de résultat ce mois-ci</span></div>';
+      let nextHTML = '';
+      if (next) {
+        const side = favSide(fav, next);
+        const opp = next.home && next.away ? next[side === 'away' ? 'home' : 'away'] : null;
+        const rel = relativeDay(next.dayKey);
+        nextHTML = '<button class="team-next" data-day="' + next.dayKey + '" data-focus="' + esc(next.id) + '">Prochain : <b>' +
+          (opp ? (side === 'away' ? 'à ' : 'contre ') + esc(opp.name) : esc(next.title || '')) + '</b> · ' +
+          esc(rel || fmtShortDay.format(keyToUTC(next.dayKey))) + (next.timeValid ? ' ' + hhmm(new Date(next.start)) : '') +
+          ((next.channels.fr || [])[0] ? ' · ' + esc(next.channels.fr[0]) : '') + '</button>';
+      }
+      return '<article class="team-card theme-' + fav.theme + '">' +
+        '<div class="team-head">' + (logoUrl ? '<img src="' + esc(logoUrl) + '" alt="" width="34" height="34" loading="lazy">' : '') +
+        '<h3>' + esc(panel.name) + '</h3></div>' + rank + formHTML + nextHTML + '</article>';
+    }).filter(Boolean);
+    el.innerHTML = cards.length ? '<div class="section-title">💪 Mes équipes : forme et classement</div><div class="team-grid">' + cards.join('') + '</div>' : '';
+  }
+
+  function openTable(favId) {
+    const panel = C.TEAM_PANELS.find(function (p) { return p.fav === favId; });
+    const st = panel && standingOf(panel);
+    if (!st) return;
+    const rows = st.group.entries.map(function (e) {
+      const me = e.teamId === panel.teamId;
+      return '<tr class="' + (me ? 'is-me' : '') + '">' +
+        '<td class="rk"' + (e.zone && e.zone.color ? ' style="box-shadow: inset 3px 0 0 ' + esc(e.zone.color) + '" title="' + esc(zoneFr(e.zone.label)) + '"' : '') + '>' + e.rank + '</td>' +
+        '<td class="tm"><span class="tmi">' + (e.logo ? '<img src="' + esc(e.logo) + '" alt="" width="20" height="20" loading="lazy">' : '') + esc(e.name) + '</span></td>' +
+        '<td>' + esc(e.played) + '</td><td>' + esc(e.wins) + '</td><td>' + esc(e.draws) + '</td><td>' + esc(e.losses) + '</td>' +
+        '<td>' + esc(e.diff) + '</td><td class="pts">' + esc(e.points) + '</td></tr>';
+    }).join('');
+    const zones = {};
+    st.group.entries.forEach(function (e) {
+      if (!e.zone || !e.zone.color) return;
+      const lbl = zoneFr(e.zone.label);
+      const list = zones[e.zone.color] = zones[e.zone.color] || [];
+      if (list.indexOf(lbl) === -1) list.push(lbl);
+    });
+    Object.keys(zones).forEach(function (c) { zones[c] = zones[c].join(' / '); });
+    const legend = Object.keys(zones).map(function (c) {
+      return '<span><i style="background:' + esc(c) + '"></i>' + esc(zones[c]) + '</span>';
+    }).join('');
+    const dlg = $('#event-dialog');
+    dlg.innerHTML =
+      '<div class="dlg-head"><div class="comp">Classement · mis à jour automatiquement</div><h3>' + esc(panel.standings.label) +
+      (st.group.entries.length < 10 ? ' · ' + esc(st.group.name) : '') + '</h3>' +
+      '<button class="icon-btn dlg-close" data-close aria-label="Fermer">✕</button></div>' +
+      '<div class="dlg-body"><div class="table-wrap"><table class="std"><thead><tr><th>#</th><th class="tm">Équipe</th><th title="Joués">J</th><th title="Victoires">V</th><th title="Nuls">N</th><th title="Défaites">D</th><th title="Différence">+/-</th><th>Pts</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>' +
+      (legend ? '<p class="std-legend">' + legend + '</p>' : '') +
+      '<div class="dlg-actions"><button class="btn" data-close>Fermer</button></div></div>';
+    showDialog(dlg);
+    const me = dlg.querySelector('tr.is-me');
+    if (me) me.scrollIntoView({ block: 'center' });
   }
 
   // ----------------------------------------------------------- Calendrier
@@ -826,6 +1079,7 @@
     }
     state.errors.clear();
     months.forEach(function (m) { loadMonth(m, true); });
+    loadStandings(true);
     Object.keys(liveStamp).forEach(function (k) { delete liveStamp[k]; });
     liveRefresh();
     scheduleRender();
@@ -1121,6 +1375,18 @@
         toast(names[prefs.theme] || '');
         return;
       }
+      if (t.closest('[data-greet-close]')) {
+        const st = greetState(); st.dismissed = todayKey(); saveGreet(st);
+        renderGreeting();
+        return;
+      }
+      if (t.closest('[data-welcome-go]')) {
+        const st = greetState(); st.welcomed = true; saveGreet(st);
+        t.closest('dialog').close();
+        return;
+      }
+      const tbl = t.closest('[data-table]');
+      if (tbl) { openTable(tbl.dataset.table); return; }
       const exp = t.closest('[data-export-fav]');
       if (exp) { exportFavorite(exp.dataset.exportFav); return; }
       const rm = t.closest('[data-rm]');
@@ -1148,7 +1414,7 @@
       const t = e.target;
       if (t.dataset.fav) {
         prefs.favOff[t.dataset.fav] = !t.checked;
-        savePrefs(); rerateAll(); render();
+        savePrefs(); rerateAll(); loadStandings(); render();
       } else if (t.dataset.region) {
         prefs.regions[t.dataset.region] = t.checked;
         savePrefs(); render();
@@ -1241,6 +1507,11 @@
     updateQuickDays();
     render();
     loadMonth(state.month);
+    // Le mois précédent pour les compétitions des équipes de cœur (leurs 5 derniers résultats).
+    loadMonth(addMonths(monthOf(todayKey()), -1), false, C.FORM_LEAGUES);
+    loadMonth(addMonths(monthOf(todayKey()), -2), false, C.FORM_LEAGUES);
+    loadStandings();
+    welcomeOnce();
     // Les derniers jours du mois, on prépare déjà le mois suivant.
     const t = todayKey();
     if (+t.slice(8) >= 24) loadMonth(addMonths(state.month, 1));
@@ -1260,7 +1531,7 @@
     setInterval(tick, 20000);
     setInterval(liveRefresh, 60000);
     // Et toutes les 15 minutes, on vérifie tout seul s'il y a du nouveau.
-    setInterval(function () { if (!document.hidden) loadMonth(state.month); }, 15 * 60000);
+    setInterval(function () { if (!document.hidden) { loadMonth(state.month); loadStandings(); } }, 15 * 60000);
     // Changement de jour à minuit
     let lastToday = t;
     setInterval(function () {

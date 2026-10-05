@@ -13,6 +13,13 @@ Les matchs des équipes de cœur sont mis en avant avec une carte animée **🔥
 
 ## Ce que fait l'appli
 
+- **Le petit mot du fiston** 🎁 : à la première ouverture, une surprise avec des confettis. Ensuite, chaque jour, « Bonne journée Papa ! » (« Bonne soirée » après 18h) avec le match du jour de ses équipes. Il peut le fermer pour la journée.
+- **💪 Mes équipes : forme et classement** : pour les Bleus, le Téfécé, le Stade Toulousain et Forest :
+  - la place au classement (un clic ouvre le classement complet, avec les zones Europe et relégation) ;
+  - les 5 derniers résultats (V / N / D) ;
+  - le prochain match.
+
+  Tout est **mis à jour automatiquement** depuis ESPN : à chaque ouverture, toutes les 15 minutes et avec 🔄 Actualiser.
 - **À la une** : le prochain grand rendez-vous (par exemple *Ce soir, France–Italie, 20h45, TF1*), avec un compte à rebours.
 - **Calendrier du mois** : un point de couleur par sport et un badge sur les jours où joue une équipe de cœur.
 - **Programme du jour** : d'abord les immanquables, puis les matchs « à suivre » (grosses affiches, joueurs français au tennis, Grands Prix de F1…), puis tout le reste, classé par compétition.

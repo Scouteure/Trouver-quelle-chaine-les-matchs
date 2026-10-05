@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=20261005">
+  <link rel="stylesheet" href="css/style.css?v=20261005b">
 </head>
 <body data-theme="bleus">
   <div class="sky" aria-hidden="true"></div>
@@ -58,8 +58,10 @@
   </div>
 
   <main class="page">
+    <section id="greeting" class="greeting" aria-live="polite"></section>
     <section id="hero" class="hero" aria-live="polite"></section>
     <section id="upcoming" class="upcoming" aria-label="Prochains immanquables"></section>
+    <section id="teams" class="teams" aria-label="Mes équipes : forme et classement"></section>
 
     <section class="controls" aria-label="Filtres">
       <div class="quick-days" role="group" aria-label="Aller à">
@@ -111,10 +113,11 @@
 
   <dialog id="event-dialog" class="dialog"></dialog>
   <dialog id="settings-dialog" class="dialog"></dialog>
+  <dialog id="welcome-dialog" class="dialog dialog--welcome"></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/config.js?v=20261005"></script>
-  <script src="js/espn.js?v=20261005"></script>
-  <script src="js/app.js?v=20261005"></script>
+  <script src="js/config.js?v=20261005b"></script>
+  <script src="js/espn.js?v=20261005b"></script>
+  <script src="js/app.js?v=20261005b"></script>
 </body>
 </html>
