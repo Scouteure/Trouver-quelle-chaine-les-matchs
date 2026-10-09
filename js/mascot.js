@@ -99,7 +99,10 @@
   // Il se promène surtout dans le bas de l'écran, pour ne pas gêner la lecture.
   function bounds() {
     const s = size();
-    return { minX: 6, maxX: Math.max(6, window.innerWidth - s.w - 6), minY: Math.max(80, window.innerHeight * 0.5), maxY: Math.max(80, window.innerHeight - s.h - 4) };
+    const maxY = Math.max(80, window.innerHeight - s.h - 4);
+    // Sur téléphone, il reste au ras du bas de l'écran pour ne pas cacher les chaînes.
+    const minY = window.innerWidth < 600 ? Math.max(80, maxY - 40) : Math.max(80, window.innerHeight * 0.5);
+    return { minX: 6, maxX: Math.max(6, window.innerWidth - s.w - 6), minY: minY, maxY: maxY };
   }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function place() {

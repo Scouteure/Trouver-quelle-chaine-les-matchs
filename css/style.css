@@ -374,7 +374,7 @@ button { cursor: pointer; }
 .team { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 700; }
 .team img, .team .logo-ph { width: 24px; height: 24px; object-fit: contain; flex: none; }
 .team .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.team .sc { margin-left: auto; font-family: var(--display); font-size: 22px; line-height: 1; padding-left: 8px; }
+.team .sc { margin-left: auto; white-space: nowrap; font-family: var(--display); font-size: 22px; line-height: 1; padding-left: 8px; }
 .team.is-winner .nm { color: #fff; }
 .team.is-loser { opacity: .62; }
 .fav-card .team { font-size: 1.18em; }
@@ -406,6 +406,7 @@ button { cursor: pointer; }
   background: var(--chbg, #333); color: var(--chfg, #fff); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
 }
 .ch .free { font-size: .78em; font-weight: 800; padding: 0 5px; border-radius: 4px; background: #23c16b; color: #04140a; text-transform: uppercase; letter-spacing: .04em; }
+.chs .ch { max-width: 100%; min-width: 0; overflow: hidden; }
 .ch-none { color: var(--faint); font-size: .8em; font-style: italic; }
 
 /* 5 pays : deux colonnes de chaînes dans les lignes du programme */
@@ -538,7 +539,7 @@ table.std tr.is-me td { background: var(--accent-soft); font-weight: 800; }
 }
 .dialog::backdrop { background: rgba(3, 5, 14, .7); backdrop-filter: blur(4px); }
 .dlg-head { position: relative; padding: 20px 22px 16px; border-bottom: 1px solid var(--line); }
-.dlg-head .comp { color: var(--muted); font-weight: 700; font-size: .88em; }
+.dlg-head .comp { padding-right: 44px; color: var(--muted); font-weight: 700; font-size: .88em; }
 .dlg-head h3 { margin: 6px 0 0; font-family: var(--display); font-weight: 400; font-size: 36px; line-height: 1; letter-spacing: .03em; }
 .dlg-close { position: absolute; top: 14px; right: 14px; }
 .dlg-body { padding: 16px 22px 22px; }
@@ -564,7 +565,7 @@ table.std tr.is-me td { background: var(--accent-soft); font-weight: 800; }
 .fav-item input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
 .fav-item .rm { border: 0; background: transparent; color: var(--muted); font-size: 18px; }
 .add-fav { display: flex; gap: 8px; margin-top: 8px; }
-.add-fav input { flex: 1; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line-2); background: rgba(0,0,0,.25); }
+.add-fav input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line-2); background: rgba(0,0,0,.25); }
 .region-list { display: flex; gap: 8px; flex-wrap: wrap; }
 .region-list label { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); font-weight: 700; cursor: pointer; }
 .region-list .flag { width: 22px; height: 15px; border-radius: 3px; overflow: hidden; display: inline-block; }
@@ -799,3 +800,49 @@ table.std tr.is-me td { background: var(--accent-soft); font-weight: 800; }
   /* Sur téléphone : la chaîne principale de chaque pays suffit dans la liste (toutes dans la fiche du match). */
   .row .chs .ch:nth-child(n+2), .hot-card .chs .ch:nth-child(n+2) { display: none; }
 }
+
+/* ---------------------------------------------------------------- Téléphone : finitions
+   (Papa s'en sert surtout sur son téléphone : rien ne doit dépasser de l'écran,
+   et tout ce qui se touche doit être assez grand pour le doigt.) */
+@media (max-width: 560px) {
+  html, body { overflow-x: hidden; }
+  /* Les chaînes passent sous le match, sur toute la largeur de la carte. */
+  .ev .channels { grid-column: 1 / -1; }
+  .row .channels, .hot-card .channels { gap: 6px 10px; }
+  /* Scores de tennis sur une seule ligne, et place pour les noms. */
+  .team .sc { font-size: 19px; letter-spacing: .02em; }
+  .fav-card .team .sc { font-size: 24px; }
+  .fr-pill { padding: 1px 5px; font-size: 0; gap: 0; }
+  .fr-pill svg { width: 16px; height: 11px; }
+  .theme-dot { width: 34px; height: 34px; }
+  /* Fenêtres : titres moins énormes, contenu qui défile */
+  .dialog { max-height: calc(100dvh - 24px); }
+  .dlg-head { padding: 16px 16px 12px; }
+  .dlg-head h3 { font-size: 30px; }
+  .dlg-body { padding: 14px 16px 18px; }
+  .dlg-ch { grid-template-columns: minmax(0, 92px) minmax(0, 1fr); gap: 8px 10px; }
+  .fav-item label { flex: 1; min-width: 0; }
+  table.std { font-size: .86em; }
+  table.std th, table.std td { padding-left: 3px; padding-right: 3px; }
+  table.std .rk { width: 24px; }
+  table.std .tmi { gap: 5px; }
+}
+/* Écrans tactiles (téléphone, tablette, même en paysage) : zones à toucher plus grandes. */
+@media (pointer: coarse), (max-width: 560px) {
+  .team-rank, .team-next { padding: 6px 0; }
+  .form-pill { width: 30px; height: 30px; }
+  .mini-btn { padding: 8px 12px; }
+  .pill { min-height: 38px; }
+  .toggle { min-height: 38px; }
+  .dlg-close { width: 40px; height: 40px; }
+}
+@media (max-width: 360px) {
+  .page, .topbar { padding-left: 10px; padding-right: 10px; }
+  .theme-dot { width: 30px; height: 30px; }
+  .theme-switch { gap: 3px; padding: 3px; }
+  .row { padding: 10px 4px; }
+  .ev { grid-template-columns: 54px minmax(0, 1fr); gap: 8px; }
+  .row .ev-time { font-size: 18px; }
+  .dlg-head h3 { font-size: 26px; }
+}
+
