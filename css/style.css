@@ -598,6 +598,122 @@ table.std tr.is-me td { background: var(--accent-soft); font-weight: 800; }
 @keyframes rotate { to { transform: rotate(360deg); } }
 @keyframes skel { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
+/* ---------------------------------------------------------------- Mascotte (Pitchoun) */
+.mascot { position: fixed; left: 0; top: 0; z-index: 40; width: 76px; height: 92px; will-change: transform; }
+.mascot[hidden], .mascot-dock[hidden], .mascot-bubble[hidden] { display: none; }
+.mascot-btn { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.mascot-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 50%; }
+.mascot-flip { display: block; width: 100%; height: 100%; transition: transform .2s; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); }
+.mascot.is-left .mascot-flip { transform: scaleX(-1); }
+.mascot-flip svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.mascot .m-eyes { transform-origin: 50px 39px; animation: m-blink 4.5s infinite; }
+.mascot .m-eyes-closed { display: none; }
+.mascot .m-leg-l { transform-origin: 42px 93px; }
+.mascot .m-leg-r { transform-origin: 58px 93px; }
+.mascot .m-arm-l { transform-origin: 34px 67px; }
+.mascot .m-arm-r { transform-origin: 66px 67px; }
+.mascot .m-ball { transform-origin: 78px 109px; transform-box: view-box; }
+.mascot.is-walking .m-leg-l, .mascot.is-running .m-leg-l { animation: m-leg .42s ease-in-out infinite alternate; }
+.mascot.is-walking .m-leg-r, .mascot.is-running .m-leg-r { animation: m-leg .42s ease-in-out infinite alternate-reverse; }
+.mascot.is-walking .m-arm-l, .mascot.is-running .m-arm-l { animation: m-leg .42s ease-in-out infinite alternate-reverse; }
+.mascot.is-walking .m-arm-r, .mascot.is-running .m-arm-r { animation: m-leg .42s ease-in-out infinite alternate; }
+.mascot.is-walking .m-bob, .mascot.is-running .m-bob { animation: m-bob .21s ease-in-out infinite alternate; }
+.mascot.is-walking .m-ball, .mascot.is-running .m-ball { animation: m-roll .6s linear infinite; }
+.mascot.is-running .m-leg, .mascot.is-running .m-arm, .mascot.is-running .m-bob { animation-duration: .2s; }
+.mascot.is-running .m-bob { animation-duration: .1s; }
+.mascot.is-waving .m-arm-r { animation: m-wave .35s ease-in-out 4 alternate; }
+.mascot.is-juggling .m-ball { animation: m-juggle .65s cubic-bezier(.3,.7,.4,1) infinite alternate; }
+.mascot.is-juggling .m-leg-r { animation: m-kick .65s ease-in-out infinite alternate; }
+.mascot.is-looking .m-head { animation: m-look 2.4s ease-in-out; transform-origin: 50px 60px; }
+.mascot.is-happy .mascot-flip { animation: m-jump .45s cubic-bezier(.3,.7,.4,1) 2; }
+.mascot.is-sleeping .m-eyes { display: none; }
+.mascot.is-sleeping .m-eyes-closed { display: inline; }
+.mascot.is-sleeping .m-bob { animation: m-breathe 2.6s ease-in-out infinite; transform-origin: 50px 92px; }
+.mascot.pop { animation: m-pop .35s cubic-bezier(.3,1.4,.5,1); }
+.mascot-zz { position: absolute; right: -2px; top: -6px; font-weight: 800; color: #c7a3f0; font-size: 16px; opacity: 0; pointer-events: none; }
+.mascot-zz span { margin-left: 2px; font-size: .8em; }
+.mascot.is-sleeping .mascot-zz { animation: m-zz 2.6s ease-in-out infinite; }
+.mascot-say {
+  position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translate(-50%, 6px) scale(.9); width: max-content; max-width: min(240px, 70vw);
+  padding: 7px 11px; border-radius: 14px; background: #fff; color: #1a1030; font-weight: 700; font-size: 13px; line-height: 1.3; text-align: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,.35); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.mascot-say::after { content: ''; position: absolute; top: 100%; left: 50%; margin-left: -6px; border: 6px solid transparent; border-top-color: #fff; }
+.mascot-say.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.mascot-say.to-left { left: auto; right: 0; transform: translateY(6px) scale(.9); }
+.mascot-say.to-left.show { transform: none; }
+.mascot-say.to-left::after { left: auto; right: 24px; }
+.mascot-say.to-right { left: 0; transform: translateY(6px) scale(.9); }
+.mascot-say.to-right.show { transform: none; }
+.mascot-say.to-right::after { left: 30px; }
+
+.mascot-dock {
+  position: fixed; right: 18px; bottom: 18px; z-index: 40; width: 62px; height: 62px; padding: 6px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.85); background: radial-gradient(circle at 35% 30%, #9a5fd0, #5b2a86 70%);
+  box-shadow: 0 10px 26px rgba(0,0,0,.45), 0 0 0 4px rgba(154, 95, 208, .25); cursor: pointer; transition: transform .2s;
+}
+.mascot-dock:hover { transform: scale(1.07) rotate(-4deg); }
+.mascot-dock svg { display: block; width: 100%; height: 100%; }
+.mascot-dock.is-out svg { visibility: hidden; }
+.mascot-dock-dot { position: absolute; top: 3px; right: 3px; width: 12px; height: 12px; border-radius: 50%; background: #f2c230; border: 2px solid #5b2a86; }
+
+.mascot-bubble {
+  position: fixed; z-index: 45; width: min(320px, calc(100vw - 16px)); padding: 16px 16px 12px; border-radius: 20px;
+  background: #fff; color: #1a1030; box-shadow: 0 20px 50px rgba(0,0,0,.5); border: 3px solid #7b3fb8;
+  opacity: 0; transform: translateY(8px) scale(.96); transition: opacity .18s, transform .18s;
+}
+.mascot-bubble.show { opacity: 1; transform: none; }
+.mascot-bubble::after {
+  content: ''; position: absolute; top: 100%; left: var(--tail, 50%); margin-left: -10px;
+  border: 10px solid transparent; border-top-color: #7b3fb8;
+}
+.mascot-bubble.is-below::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #7b3fb8; }
+.mb-close { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border: 0; border-radius: 50%; background: #f1eaf8; color: #5b2a86; font-weight: 800; cursor: pointer; }
+.mb-msg { margin: 0 26px 10px 0; font-size: 15px; line-height: 1.4; }
+.mb-msg small { color: #6a5a80; }
+.mb-form { display: flex; gap: 6px; }
+.mb-input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 2px solid #d9c8ee; font: inherit; font-size: 16px; color: #1a1030; background: #fff; }
+.mb-input:focus { outline: none; border-color: #7b3fb8; }
+.mascot-bubble .btn { padding: 9px 14px; }
+.mascot-bubble .btn:not(.btn--primary) { background: #f1eaf8; color: #5b2a86; border-color: transparent; }
+.mascot-bubble .btn--primary { background: #7b3fb8; }
+.mb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.mb-chip { padding: 6px 10px; border-radius: 999px; border: 1px solid #d9c8ee; background: #faf6ff; color: #3d1d5c; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.mb-chip:hover { background: #efe3fb; }
+.mb-match { display: grid; gap: 3px; padding: 10px 12px; margin-bottom: 10px; border-radius: 14px; background: #f6f0fc; border-left: 4px solid #7b3fb8; }
+.mb-match b { font-size: 17px; line-height: 1.2; }
+.mb-match span { color: #5d4d74; font-size: 13px; font-weight: 600; }
+.mb-match .mb-when { color: #1a1030; font-size: 15px; font-weight: 800; }
+.mb-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.mb-foot { margin-top: 10px; text-align: right; }
+.mb-link { border: 0; background: none; padding: 4px 0; color: #7b3fb8; font: inherit; font-size: 12.5px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+/* La case du calendrier « tapée » et le match montré par Pitchoun */
+.mascot-tap { animation: m-tap .6s ease-out; }
+.mascot-spot { animation: m-spot 1.2s ease-in-out 4; outline: 3px solid #b77ff0; outline-offset: 3px; }
+
+@keyframes m-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+@keyframes m-leg { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+@keyframes m-bob { from { transform: translateY(0); } to { transform: translateY(-2.5px); } }
+@keyframes m-roll { to { transform: rotate(360deg); } }
+@keyframes m-wave { from { transform: rotate(0); } to { transform: rotate(-140deg); } }
+@keyframes m-juggle { from { transform: translateY(0); } to { transform: translate(-6px, -34px) rotate(200deg); } }
+@keyframes m-kick { from { transform: rotate(0); } to { transform: rotate(-28deg); } }
+@keyframes m-look { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 65% { transform: rotate(10deg); } }
+@keyframes m-jump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
+.mascot.is-left.is-happy .mascot-flip { animation-name: m-jump-l; }
+@keyframes m-jump-l { 0%, 100% { transform: scaleX(-1) translateY(0); } 50% { transform: scaleX(-1) translateY(-16px); } }
+@keyframes m-breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(.96); } }
+@keyframes m-zz { 0% { opacity: 0; transform: translate(0, 6px); } 30%, 70% { opacity: 1; } 100% { opacity: 0; transform: translate(8px, -14px); } }
+@keyframes m-pop { from { transform: scale(.2); opacity: 0; } }
+@keyframes m-tap { 0% { box-shadow: 0 0 0 0 rgba(183, 127, 240, .9); transform: scale(.92); } 100% { box-shadow: 0 0 0 16px rgba(183, 127, 240, 0); transform: scale(1); } }
+@keyframes m-spot { 0%, 100% { box-shadow: 0 0 0 0 rgba(183, 127, 240, 0); } 50% { box-shadow: 0 0 0 8px rgba(183, 127, 240, .45); } }
+
+@media (max-width: 560px) {
+  .mascot { width: 62px; height: 75px; }
+  .mascot-dock { right: 12px; bottom: 12px; width: 56px; height: 56px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

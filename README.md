@@ -29,6 +29,7 @@ Les matchs des équipes de cœur sont mis en avant avec une carte animée **🔥
 - **Scores en direct**, mis à jour toutes les minutes pendant les matchs.
 - **🔄 Actualiser** (en haut) : recharge tout le programme d'un coup : nouveaux matchs, horaires confirmés, changements de chaîne. Un message dit combien de nouveaux matchs sont arrivés. Sans cliquer, l'appli vérifie aussi toute seule toutes les 15 minutes et à chaque retour sur l'onglet.
 - **📅 Me le rappeler** : ajoute le match à l'agenda du téléphone ou de l'ordinateur, avec une alerte 30 minutes avant.
+- **🐾 Pitchoun, la mascotte** : une petite violette en maillot du Téfécé qui se promène sur l'écran (elle jongle, fait coucou, s'endort si on l'oublie, et on peut la déplacer à la main). Un clic dessus : « Quel sportif ou quel match tu cherches ? ». On tape par exemple « Nottingham Forest » (même avec une faute, ou un surnom : TFC, PSG, OM, Barça…) et elle court jusqu'au bon jour dans le calendrier, puis montre le match avec ses chaînes. Dans ⚙ (ou depuis sa bulle), on peut la « ranger » : elle attend alors dans un bouton rond en bas à droite.
 - **Recherche** d'une équipe ou d'un joueur (« Forest », « Fils », « Marseille »…).
 - **⚙ Réglages** :
   - activer ou désactiver une équipe de cœur, ou en ajouter une (club ou joueur) ;
@@ -73,6 +74,7 @@ css/style.css            le style (thèmes, animations, mobile)
 js/config.js             compétitions, chaînes, équipes de cœur, règles « immanquable »
 js/espn.js               lecture et traduction des calendriers ESPN
 js/app.js                l'interface (calendrier, programme, fiches, réglages)
+js/mascot.js             Pitchoun, la mascotte qui guide vers le prochain match
 data/snapshot.js         copie de secours du programme (générée)
 scripts/build-snapshot.js  génère la copie de secours
 ```

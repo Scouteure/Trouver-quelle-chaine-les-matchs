@@ -990,10 +990,14 @@
     return html + '</section>';
   }
 
+  function groupKey(ev) {
+    return ev.sport === 'tennis' ? 'tennis:' + ev.tournamentId : (ev.sport === 'f1' ? 'f1:' + ev.title : ev.league);
+  }
+
   function groupsHTML(evs, key) {
     const groups = new Map();
     evs.forEach(function (ev) {
-      const gk = ev.sport === 'tennis' ? 'tennis:' + ev.tournamentId : (ev.sport === 'f1' ? 'f1:' + ev.title : ev.league);
+      const gk = groupKey(ev);
       if (!groups.has(gk)) groups.set(gk, { key: gk, ev: ev, list: [] });
       groups.get(gk).list.push(ev);
     });
@@ -1018,8 +1022,8 @@
         return sortByTime(a, b);
       });
       const minor = Math.max.apply(null, list.map(function (e) { return e.rating.level; })) === 0;
-      const open = !minor || list.length <= 3;
       const gid = key + '|' + g.key;
+      const open = !minor || list.length <= 3 || state.expanded.has(gid);
       let limit = state.expanded.has(gid) ? list.length : (g.ev.sport === 'tennis' ? 6 : 14);
       if (list.length - limit <= 2) limit = list.length;
       const shown = list.slice(0, limit);
@@ -1275,6 +1279,9 @@
       '<p class="dlg-info" style="margin:0 0 8px">Cochez ce que vous avez : vos chaînes seront marquées ✓ et vous pourrez n\'afficher que les matchs que vous pouvez regarder. Les chaînes gratuites (TF1, France 2, M6, L\'Équipe…) comptent toujours.</p>' +
       '<div class="region-list">' + subs + '</div>' +
       '<h4>Chaînes à afficher</h4><div class="region-list">' + regions + '</div>' +
+      (window.Mascot ? '<h4>🐾 Pitchoun, la mascotte</h4><div class="region-list"><label><input type="checkbox" data-mascot' +
+        (window.Mascot.isRoaming() ? ' checked' : '') + '>Pitchoun se promène sur l\'écran</label></div>' +
+        '<p class="dlg-info" style="margin:6px 0 0">Décoché, il attend sagement dans un bouton en bas à droite.</p>' : '') +
       '<h4>Données</h4><p class="dlg-info" style="margin:0 0 10px">Le programme se met à jour tout seul (toutes les 15 min, et chaque minute pendant les matchs). Pour forcer :</p>' +
       '<button class="btn" id="force-refresh">🔄 Actualiser maintenant</button>' +
       '</div>';
@@ -1432,6 +1439,8 @@
       if (t.dataset.fav) {
         prefs.favOff[t.dataset.fav] = !t.checked;
         savePrefs(); rerateAll(); loadStandings(); render();
+      } else if (t.hasAttribute('data-mascot')) {
+        if (window.Mascot) window.Mascot.setRoaming(t.checked);
       } else if (t.dataset.region) {
         prefs.regions[t.dataset.region] = t.checked;
         savePrefs(); render();
@@ -1513,6 +1522,149 @@
       if (el.textContent !== txt) el.textContent = txt;
     });
   }
+
+
+  // ===================================================================
+  // Pour la mascotte : trouver le prochain rendez-vous d'une équipe ou
+  // d'un joueur, et y emmener Papa dans le calendrier.
+  // ===================================================================
+  // Surnoms courants → nom tel qu'il apparaît dans le calendrier (ou équipe de cœur).
+  const ALIASES = {
+    'tfc': { fav: 'tfc' }, 'tefece': { fav: 'tfc' }, 'toulouse fc': { fav: 'tfc' }, 'le tfc': { fav: 'tfc' },
+    'violets': { fav: 'tfc' }, 'les violets': { fav: 'tfc' }, 'toulouse foot': { fav: 'tfc' },
+    'stade toulousain': { fav: 'stade' }, 'le stade': { fav: 'stade' }, 'toulouse rugby': { fav: 'stade' },
+    'forest': { fav: 'forest' }, 'nottingham': { fav: 'forest' }, 'nottingham forest': { fav: 'forest' }, 'nffc': { fav: 'forest' },
+    'bleus': { fav: 'france' }, 'les bleus': { fav: 'france' }, 'equipe de france': { fav: 'france' },
+    'xv de france': { fav: 'france-rugby' }, 'france rugby': { fav: 'france-rugby' },
+    'psg': { text: 'paris sg' }, 'paris saint germain': { text: 'paris sg' }, 'om': { text: 'marseille' },
+    'ol': { text: 'lyon' }, 'asse': { text: 'saint-etienne' }, 'barca': { text: 'barcelona' },
+    'real': { text: 'real madrid' }, 'atletico': { text: 'atletico madrid' }, 'bayern': { text: 'bayern munich' },
+    'man city': { text: 'manchester city' }, 'city': { text: 'manchester city' },
+    'man united': { text: 'manchester united' }, 'man utd': { text: 'manchester united' }, 'manchester utd': { text: 'manchester united' },
+    'spurs': { text: 'tottenham' }, 'inter': { text: 'inter milan' }, 'milan': { text: 'ac milan' }, 'juve': { text: 'juventus' },
+    'formule 1': { sport: 'f1' }, 'f1': { sport: 'f1' }, 'grand prix': { sport: 'f1' },
+  };
+  const FILLER = /\b(le|la|les|l|du|de|des|d|un|une|match|matchs|prochain|prochaine|quand|joue|jouent|contre|vs|et|equipe|club|moi|trouve|cherche|je|veux|voir)\b/g;
+
+  function levenshtein(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return 3;
+    let prev = [];
+    for (let j = 0; j <= b.length; j++) prev[j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      for (let j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+  // Un mot tapé ressemble-t-il à un mot du calendrier ? (tolère une faute de frappe : « Nottingam »)
+  function wordMatches(w, words) {
+    const tol = w.length >= 7 ? 2 : (w.length >= 4 ? 1 : 0);
+    return words.some(function (x) {
+      if (x === w || (w.length >= 3 && x.indexOf(w) === 0)) return true;
+      return tol && levenshtein(w, x) <= tol;
+    });
+  }
+  function eventWords(ev) {
+    return C.normalizeText([ev.home && ev.home.name, ev.away && ev.away.name, ev.home && ev.home.raw, ev.away && ev.away.raw,
+      ev.title, ev.tournament].filter(Boolean).join(' ')).split(/[^a-z0-9]+/).filter(Boolean);
+  }
+
+  function matcherFor(query) {
+    const q = C.normalizeText(query).replace(/[’'-]/g, ' ').replace(/\s+/g, ' ').trim();
+    const alias = ALIASES[q] || ALIASES[q.replace(FILLER, ' ').replace(/\s+/g, ' ').trim()];
+    if (alias && alias.fav) {
+      const fav = C.FAVORITES.find(function (f) { return f.id === alias.fav; });
+      return { label: fav.label, test: fav.test };
+    }
+    if (alias && alias.sport) return { label: query, test: function (ev) { return ev.sport === alias.sport; } };
+    const text = alias && alias.text ? alias.text : q;
+    const words = text.replace(/-/g, ' ').replace(FILLER, ' ').split(/\s+/).filter(function (w) { return w.length >= 2; });
+    if (!words.length) return null;
+    return {
+      label: query,
+      test: function (ev) {
+        const hay = eventWords(ev);
+        return words.every(function (w) { return wordMatches(w, hay); });
+      },
+    };
+  }
+
+  // Le prochain rendez-vous (ou celui en cours) parmi ce qui est chargé.
+  function findNext(query) {
+    const m = matcherFor(query);
+    if (!m) return null;
+    const now = Date.now();
+    const hits = allEvents().filter(function (ev) {
+      if (ev.status.state === 'post' || isGhost(ev)) return false;
+      if (ev.status.state !== 'in' && new Date(ev.kind === 'tournament' && ev.end ? ev.end : ev.start) < now - 3 * 3600000) return false;
+      return m.test(ev);
+    }).sort(function (a, b) {
+      return ((b.status.state === 'in') - (a.status.state === 'in')) || sortByTime(a, b);
+    });
+    return hits[0] || null;
+  }
+
+  // Charge un mois (si besoin) et attend qu'il soit arrivé.
+  function ensureMonth(ym) {
+    loadMonth(ym);
+    return new Promise(function (resolve) {
+      const t0 = Date.now();
+      (function wait() {
+        if (!isLoadingMonth(ym) || Date.now() - t0 > 25000) resolve();
+        else setTimeout(wait, 300);
+      })();
+    });
+  }
+
+  function describe(ev) {
+    const title = ev.home && ev.away ? ev.home.name + ' – ' + ev.away.name : (ev.title + (ev.round ? ' · ' + ev.round : ''));
+    const rel = relativeDay(ev.dayKey);
+    const when = ev.status.state === 'in' ? 'en ce moment même'
+      : (rel ? rel.toLowerCase() : fmtLongDay.format(keyToUTC(ev.dayKey))) + (ev.timeValid ? ' à ' + hhmm(new Date(ev.start)) : '');
+    return {
+      title: title,
+      when: when,
+      live: ev.status.state === 'in',
+      competition: ev.sport === 'tennis' ? ev.tournament : LEAGUE_BY_KEY[ev.league].name,
+      channels: (ev.channels.fr || []).slice(0, 3),
+    };
+  }
+
+  // Affiche le jour du match (en levant les filtres qui le cacheraient) et renvoie sa carte.
+  function revealEvent(id) {
+    const ev = state.events.get(id);
+    if (!ev) return null;
+    let changed = false;
+    if (!prefs.sports[ev.sport]) { prefs.sports[ev.sport] = true; changed = true; }
+    if (prefs.onlyBig && ev.rating.level < 2) { prefs.onlyBig = false; $('#only-big').checked = false; changed = true; }
+    if (prefs.onlyMine && prefs.subsSet && !canWatch(ev)) { prefs.onlyMine = false; $('#only-mine').checked = false; changed = true; }
+    if (changed) { savePrefs(); applyPrefs(); }
+    state.expanded.add(ev.dayKey + '|' + groupKey(ev));
+    if (state.mode !== 'day' || state.selected !== ev.dayKey || state.query || changed) selectDay(ev.dayKey);
+    else renderAgenda();
+    return Array.prototype.find.call(document.querySelectorAll('#agenda [data-ev]'), function (x) { return x.dataset.ev === id; }) || null;
+  }
+  // La case du calendrier visible à l'écran (grille du mois, ou bandeau de jours sur téléphone).
+  function dayElement(key) {
+    const list = document.querySelectorAll('#calendar [data-day="' + key + '"], #daystrip [data-day="' + key + '"]');
+    return Array.prototype.find.call(list, function (x) { return x.getClientRects().length > 0; }) || null;
+  }
+
+  window.GuideSport = {
+    findNext: findNext,
+    ensureMonth: ensureMonth,
+    nextMonths: function (n) { const out = []; for (let i = 1; i <= n; i++) out.push(addMonths(monthOf(todayKey()), i)); return out; },
+    isReady: function () { return !!state.firstLoadDone; },
+    describe: describe,
+    dayOf: function (id) { const ev = state.events.get(id); return ev && ev.dayKey; },
+    showMonthOf: function (key) { if (monthOf(key) !== state.month) { state.month = monthOf(key); state.stripScrolled = false; render(); } },
+    revealEvent: revealEvent,
+    dayElement: dayElement,
+    openEvent: openEvent,
+  };
 
   // ===================================================================
   // Démarrage
