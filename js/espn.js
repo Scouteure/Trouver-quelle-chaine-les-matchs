@@ -291,16 +291,28 @@
     return BASE + league.path + '/scoreboard?dates=' + dates + '&limit=500';
   }
 
+  // Le calendrier ESPN répond parfois très lentement : sans limite, une seule
+  // requête bloquée suffisait à faire patienter l'appli près d'une minute.
+  const TIMEOUT_MS = 12000;
+  async function getJSON(f, url) {
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl && setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS);
+    try {
+      const res = await f(url, ctrl ? { signal: ctrl.signal } : undefined);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   // dates : "YYYYMM" (un mois) ou "YYYYMMDD" (un jour)
   async function fetchLeague(league, dates, fetchImpl) {
     const f = fetchImpl || fetch;
     let lastErr;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const res = await f(scoreboardUrl(league, dates));
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const json = await res.json();
-        return normalize(league, json);
+        return normalize(league, await getJSON(f, scoreboardUrl(league, dates)));
       } catch (err) {
         lastErr = err;
       }
@@ -329,9 +341,7 @@
 
   async function fetchStandings(path, opts, fetchImpl) {
     const f = fetchImpl || fetch;
-    const res = await f(standingsUrl(path, opts));
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
+    const json = await getJSON(f, standingsUrl(path, opts));
     const groups = (json.children || [json]).filter(function (c) { return c.standings; }).map(function (c) {
       return {
         name: translateGroup(c.name) || c.name || '',

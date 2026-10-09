@@ -218,9 +218,17 @@
   }
 
   // --- File de téléchargement (6 en parallèle max) ---
+  // Priorité 0 : ce qui s'affiche tout de suite (mois affiché, scores en direct).
+  // Priorité 1 : classements. Priorité 2 : mois passés, utiles seulement pour la forme.
   const queue = [];
   let running = 0;
-  function enqueue(job) { queue.push(job); pump(); }
+  function enqueue(job, prio) {
+    job.prio = prio || 0;
+    let i = queue.length;
+    while (i > 0 && queue[i - 1].prio > job.prio) i--;
+    queue.splice(i, 0, job);
+    pump();
+  }
   function pump() {
     while (running < 6 && queue.length) {
       const job = queue.shift();
@@ -229,10 +237,12 @@
     }
   }
 
-  function loadMonth(ym, force, onlyKeys) {
+  function loadMonth(ym, force, onlyKeys, prio) {
     const espnYm = ym.replace('-', '');
     C.LEAGUES.forEach(function (league) {
       if (onlyKeys && onlyKeys.indexOf(league.key) === -1) return;
+      // Sport masqué dans les filtres : inutile de le télécharger (il le sera si on le réaffiche).
+      if (!prefs.sports[league.sport]) return;
       const k = league.key + '|' + espnYm;
       const cached = cacheGet(k);
       if (cached && !state.fromCache.has(k)) {
@@ -256,13 +266,13 @@
           // Le calendrier ne répond pas toujours du premier coup : nouvel essai dans 20 s.
           if (!state.retried.has(k)) {
             state.retried.add(k);
-            setTimeout(function () { loadMonth(ym, true, [league.key]); }, 20000);
+            setTimeout(function () { loadMonth(ym, true, [league.key], prio); }, 20000);
           }
         }).then(function () {
           state.loading.delete(k);
           scheduleRender();
         });
-      });
+      }, prio);
     });
     scheduleRender();
   }
@@ -352,10 +362,16 @@
   // ===================================================================
   const $ = function (sel) { return document.querySelector(sel); };
   let renderPending = false;
+  let lastRender = 0;
   function scheduleRender() {
     if (renderPending) return;
     renderPending = true;
-    requestAnimationFrame(function () { renderPending = false; render(); });
+    // Pendant le chargement, les calendriers arrivent un par un : on redessine
+    // au plus deux fois par seconde au lieu d'une fois par compétition.
+    const wait = state.loading.size ? Math.max(0, 500 - (Date.now() - lastRender)) : 0;
+    setTimeout(function () {
+      requestAnimationFrame(function () { renderPending = false; lastRender = Date.now(); render(); });
+    }, wait);
   }
 
   function esc(s) {
@@ -708,7 +724,7 @@
           state.loading.delete(k);
           scheduleRender();
         });
-      });
+      }, 1);
     });
   }
 
@@ -1365,6 +1381,7 @@
       if (sp) {
         prefs.sports[sp.dataset.sport] = !prefs.sports[sp.dataset.sport];
         savePrefs(); applyPrefs(); render();
+        if (prefs.sports[sp.dataset.sport]) selectedDays().forEach(function (k) { loadMonth(monthOf(k)); });
         return;
       }
       const th = t.closest('[data-theme-btn]');
@@ -1508,15 +1525,16 @@
     render();
     loadMonth(state.month);
     // Le mois précédent pour les compétitions des équipes de cœur (leurs 5 derniers résultats).
-    loadMonth(addMonths(monthOf(todayKey()), -1), false, C.FORM_LEAGUES);
-    loadMonth(addMonths(monthOf(todayKey()), -2), false, C.FORM_LEAGUES);
+    loadMonth(addMonths(monthOf(todayKey()), -1), false, C.FORM_LEAGUES, 2);
+    loadMonth(addMonths(monthOf(todayKey()), -2), false, C.FORM_LEAGUES, 2);
     loadStandings();
     welcomeOnce();
     // Les derniers jours du mois, on prépare déjà le mois suivant.
     const t = todayKey();
-    if (+t.slice(8) >= 24) loadMonth(addMonths(state.month, 1));
+    if (+t.slice(8) >= 24) loadMonth(addMonths(state.month, 1), false, null, 1);
+    // Le programme est prêt dès que le mois affiché est arrivé (sans attendre les mois passés).
     const check = setInterval(function () {
-      if (state.loading.size === 0) {
+      if (!isLoadingMonth(state.month)) {
         state.firstLoadDone = true;
         clearInterval(check);
         if (state.errors.size) loadSnapshot();
